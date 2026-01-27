@@ -1,0 +1,379 @@
+.hero {
+  width: 100%;
+  height: 0;
+  padding-bottom: calc(1150 / 1440 * 100%);
+  position: relative;
+  overflow: visible;
+  z-index: 2;
+}
+
+.hero__bg {
+  position: absolute;
+  inset: 0;
+  background-size: 100% 100%;
+  background-position: top center;
+  background-repeat: no-repeat;
+  z-index: 0;
+}
+
+.hero__decorations {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.hero__decor {
+  position: absolute;
+  object-fit: contain;
+}
+
+.hero__decor--convert {
+  top: 50px;
+  left: -85px;
+  width: 900px;
+  height: 885px;
+}
+
+.hero__decor--lili {
+  top: 160px;
+  right: -50px;
+  width: 545px;
+  height: 497px;
+}
+
+.hero__decor--pearl1 {
+  top: 770px;
+  left: 60px;
+  width: 158px;
+  height: 176px;
+}
+
+.hero__decor--pearl2 {
+  top: 720px;
+  left: 345px;
+  width: 86px;
+  height: 96px;
+  z-index: 3;
+}
+
+.hero__decor--pearl3 {
+  top: 450px;
+  left: 830px;
+  width: 103px;
+  height: 114px;
+}
+
+.hero__decor--rings {
+  bottom: 320px;
+  left: 775px;
+  width: 237px;
+  height: 260px;
+}
+
+.hero__content {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  top: 3rem;
+}
+
+.hero__name {
+  position: absolute;
+  color: #64713F;
+  font-size: 82px;
+  font-family: 'Cormorant Infant', serif;
+  font-weight: 400;
+  z-index: 2;
+  white-space: nowrap;
+}
+
+.hero__name--miroslav {
+  top: 22px;
+  left: 300px;
+}
+
+.hero__name--valeria {
+  top: 128px;
+  left: 636px;
+}
+
+.hero__ampersand {
+  position: absolute;
+  top: -25px;
+  left: 545px;
+  opacity: 0.71;
+  color: #DEEAC6;
+  font-size: 264px;
+  font-family: 'Cormorant Infant', serif;
+  font-weight: 400;
+  z-index: 1;
+  line-height: 1;
+}
+
+.hero__text-block {
+  position: absolute;
+  width: 718px;
+  height: 401px;
+  padding: 11px 98px 10px 98px;
+  background: #E1DDCB;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 1;
+  top: 320px;
+  left: -35px;
+
+}
+
+.hero__text-title {
+  text-align: center;
+  color: #4D5B37;
+  font-size: 48px;
+  font-family: 'Cormorant Infant', serif;
+  font-weight: 400;
+  line-height: 57.67px;
+  margin-bottom: 20px;
+}
+
+.hero__text-content {
+  text-align: center;
+  color: #9F6767;
+  font-size: 32px;
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 400;
+  line-height: 38.45px;
+}
+
+/* Адаптивность для планшетов */
+@media (max-width: 1024px) {
+  .hero__name {
+    font-size: 60px;
+  }
+
+  .hero__name--miroslav {
+    top: 40px;
+    left: 20%;
+  }
+
+  .hero__name--valeria {
+    top: 100px;
+    left: 45%;
+  }
+
+  .hero__ampersand {
+    font-size: 200px;
+    top: -20px;
+    left: 38%;
+  }
+
+  .hero__decor--convert {
+    width: 200px;
+    top: 40px;
+    left: 40px;
+  }
+
+  .hero__decor--lili {
+    width: 180px;
+    top: 40px;
+    right: 30px;
+  }
+
+  .hero__decor--pearl1 {
+    width: 120px;
+    height: auto;
+    top: 150px;
+    left: 50px;
+  }
+
+  .hero__decor--pearl2 {
+    width: 65px;
+    height: auto;
+    top: 180px;
+    left: 35%;
+  }
+
+  .hero__decor--pearl3 {
+    width: 80px;
+    height: auto;
+    top: 160px;
+    right: 35%;
+  }
+
+  .hero__decor--rings {
+    width: 130px;
+    bottom: 200px;
+    right: 200px;
+  }
+
+  .hero__text-block {
+    width: 90%;
+    max-width: 600px;
+    padding: 10px 60px;
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  .hero__text-title {
+    font-size: 40px;
+    line-height: 48px;
+  }
+
+  .hero__text-content {
+    font-size: 28px;
+    line-height: 34px;
+  }
+}
+
+/* Адаптивность для мобильных */
+@media (max-width: 768px) {
+  .hero__content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+  }
+
+  .hero__name {
+    position: relative;
+    font-size: 48px;
+    top: auto;
+    left: auto;
+    text-align: center;
+  }
+
+  .hero__name--miroslav {
+    order: 1;
+    margin-bottom: -20px;
+  }
+
+  .hero__ampersand {
+    position: relative;
+    order: 2;
+    font-size: 150px;
+    top: auto;
+    left: auto;
+    margin: -30px 0;
+  }
+
+  .hero__name--valeria {
+    order: 3;
+    margin-top: -20px;
+  }
+
+  .hero__decor--convert {
+    width: 140px;
+    top: 30px;
+    left: 20px;
+  }
+
+  .hero__decor--lili {
+    width: 120px;
+    top: 30px;
+    right: 20px;
+  }
+
+  .hero__decor--pearl1 {
+    width: 80px;
+    height: auto;
+    bottom: 100px;
+    left: 20px;
+    top: auto;
+  }
+
+  .hero__decor--pearl2 {
+    width: 50px;
+    height: auto;
+    bottom: 150px;
+    left: 50%;
+    top: auto;
+  }
+
+  .hero__decor--pearl3 {
+    width: 60px;
+    height: auto;
+    bottom: 120px;
+    right: 20px;
+    top: auto;
+    left: auto;
+  }
+
+  .hero__decor--rings {
+    width: 90px;
+    bottom: 50px;
+    right: 50%;
+    transform: translateX(50%);
+  }
+
+  .hero__text-block {
+    width: 90%;
+    padding: 15px 30px;
+    top: 55%;
+  }
+
+  .hero__text-title {
+    font-size: 32px;
+    line-height: 38px;
+    margin-bottom: 15px;
+  }
+
+  .hero__text-content {
+    font-size: 22px;
+    line-height: 28px;
+  }
+}
+
+/* Адаптивность для маленьких мобильных */
+@media (max-width: 480px) {
+  .hero__name {
+    font-size: 36px;
+  }
+
+  .hero__ampersand {
+    font-size: 120px;
+    margin: -25px 0;
+  }
+
+  .hero__name--miroslav {
+    margin-bottom: -15px;
+  }
+
+  .hero__name--valeria {
+    margin-top: -15px;
+  }
+
+  .hero__decor--convert {
+    width: 100px;
+  }
+
+  .hero__decor--lili {
+    width: 90px;
+  }
+
+  .hero__decor--pearl1,
+  .hero__decor--pearl2,
+  .hero__decor--pearl3 {
+    display: none;
+  }
+
+  .hero__decor--rings {
+    width: 70px;
+  }
+
+  .hero__text-block {
+    padding: 10px 20px;
+  }
+
+  .hero__text-title {
+    font-size: 26px;
+    line-height: 32px;
+  }
+
+  .hero__text-content {
+    font-size: 18px;
+    line-height: 24px;
+  }
+}

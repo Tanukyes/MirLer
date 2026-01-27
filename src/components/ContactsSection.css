@@ -1,0 +1,9 @@
+.contacts-section {
+  width: 100%;
+  height: 555px;
+  background: #fff;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

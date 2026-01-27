@@ -1,0 +1,17 @@
+.gold-divider {
+  width: 100%;
+  line-height: 0;
+  display: block;
+  margin: 0;
+  padding: 0;
+  margin-top: calc(-1 * (1150 / 1440 * 100% * 0.45));
+  position: relative;
+  z-index: 1;
+}
+
+.gold-divider__img {
+  display: block;
+  width: 100%;
+  height: auto;
+  vertical-align: top;
+}
