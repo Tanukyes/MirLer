@@ -17,10 +17,10 @@ export default function Hero() {
         <img src={convertImage} alt="" className="hero__decor hero__decor--convert" />
         <img src={liliImage} alt="" className="hero__decor hero__decor--lili" />
         <img src={pearlImage} alt="" className="hero__decor hero__decor--pearl1" />
-        <img src={pearlImage} alt="" className="hero__decor hero__decor--pearl2" />
         <img src={pearlImage} alt="" className="hero__decor hero__decor--pearl3" />
         <img src={ringsImage} alt="" className="hero__decor hero__decor--rings" />
       </div>
+      <img src={pearlImage} alt="" className="hero__decor hero__decor--pearl2" />
       <div className="hero__content">
         <div className="hero__name hero__name--miroslav">
           Мирослав

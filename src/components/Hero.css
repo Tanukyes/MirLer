@@ -50,11 +50,13 @@
 }
 
 .hero__decor--pearl2 {
+  position: absolute;
   top: 720px;
   left: 345px;
   width: 86px;
   height: 96px;
-  z-index: 3;
+  z-index: 5;
+  pointer-events: none;
 }
 
 .hero__decor--pearl3 {
