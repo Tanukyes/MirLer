@@ -215,7 +215,9 @@
     max-width: 600px;
     padding: 10px 60px;
     top: 50%;
+    left: 50%;
     transform: translate(-50%, -50%);
+    height: auto;
   }
 
   .hero__text-title {
@@ -311,9 +313,15 @@
   }
 
   .hero__text-block {
-    width: 90%;
-    padding: 15px 30px;
-    top: 55%;
+    position: relative;
+    width: 100%;
+    max-width: 600px;
+    padding: 15px 24px;
+    top: auto;
+    left: auto;
+    transform: none;
+    height: auto;
+    margin-top: 18px;
   }
 
   .hero__text-title {

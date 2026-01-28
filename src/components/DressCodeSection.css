@@ -77,13 +77,14 @@
 }
 
 .dresscode-section__swatches {
-  width: 58rem;
+  width: 100%;
+  max-width: 58rem;
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 120px;
   flex-wrap: wrap;
-  padding: 10px 0;
+  padding: 10px 16px;
 }
 
 .dresscode-section__swatch-wrap {
@@ -133,5 +134,20 @@
   }
   .dresscode-section__swatches {
     gap: 24px;
+    padding: 10px 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .dresscode-section {
+    padding-bottom: 28px;
+  }
+
+  .dresscode-section__text-block {
+    gap: 18px;
+  }
+
+  .dresscode-section__text {
+    font-size: 20px;
   }
 }

@@ -57,11 +57,34 @@
 }
 
 @media (max-width: 768px) {
+  .calendar-section {
+    padding: 48px 16px;
+    min-height: auto;
+  }
+
   .calendar-section__title {
     font-size: 48px;
   }
   
   .calendar-section__heart {
     width: 30px;
+  }
+}
+
+@media (max-width: 480px) {
+  .calendar-section {
+    padding: 40px 14px;
+  }
+
+  .calendar-section__title {
+    font-size: 36px;
+  }
+
+  .calendar-section__container {
+    gap: 28px;
+  }
+
+  .calendar-section__heart {
+    width: 24px;
   }
 }

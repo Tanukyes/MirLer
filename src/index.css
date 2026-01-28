@@ -10,6 +10,8 @@ body {
   min-width: 100%;
   max-width: none;
   overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -22,4 +24,9 @@ body {
   width: 100%;
   min-width: 100%;
   max-width: none;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
 }

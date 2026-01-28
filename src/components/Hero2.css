@@ -44,11 +44,16 @@
   display: block;
   position: relative;
   z-index: 2;
+  max-width: 100%;
+  height: auto;
 }
 
 .hero2__photo {
   position: absolute;
   z-index: 1;
+  width: 80%;
+  height: auto;
+  object-fit: cover;
 }
 
 .hero2__photo--left {
@@ -67,6 +72,7 @@
   top: -5%;
   right: 12%;
   z-index: 2;
+  max-width: 100%;
 }
 
 .hero2__flower-note {
@@ -75,24 +81,63 @@
   left: 16%;
   z-index: 3;
   transform: rotate(-25deg);
+  max-width: 100%;
 }
 
 @media (max-width: 768px) {
+  .hero2 {
+    margin-top: 2.5rem;
+    overflow: hidden;
+  }
+
   .hero2__polaroid--left {
     width: 38%;
+    top: 2%;
     left: 8%;
   }
   
   .hero2__polaroid--right {
     width: 42%;
+    top: 8%;
     right: 10%;
   }
   
   .hero2__stars {
     width: 24%;
+    top: 0;
+    right: 6%;
   }
   
   .hero2__flower-note {
     width: 20%;
+    left: 6%;
+    bottom: 6%;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero2 {
+    margin-top: 2rem;
+    padding-bottom: 120%;
+  }
+
+  .hero2__polaroid--left {
+    width: 56%;
+    left: 6%;
+    top: 6%;
+  }
+
+  .hero2__polaroid--right {
+    width: 56%;
+    right: 6%;
+    top: 34%;
+  }
+
+  .hero2__stars {
+    width: 28%;
+  }
+
+  .hero2__flower-note {
+    width: 28%;
   }
 }
