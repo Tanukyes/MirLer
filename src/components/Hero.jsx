@@ -1,8 +1,8 @@
-import heroImage from '../../gpep.png'
-import convertImage from '../../convert.png'
-import liliImage from '../../lili.png'
-import pearlImage from '../../pearl.png'
-import ringsImage from '../../rings.png'
+import heroImage from '../assets/images/gpep.png'
+import convertImage from '../assets/images/convert.png'
+import liliImage from '../assets/images/lili.png'
+import pearlImage from '../assets/images/pearl.png'
+import ringsImage from '../assets/images/rings.png'
 import './Hero.css'
 
 export default function Hero() {

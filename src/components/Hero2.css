@@ -16,3 +16,83 @@
   background-repeat: no-repeat;
   z-index: 0;
 }
+
+.hero2__content {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.hero2__polaroid {
+  position: absolute;
+  z-index: 2;
+}
+
+.hero2__polaroid--left {
+  top: -40px;
+  left: 270px;
+  z-index: 1;
+}
+
+.hero2__polaroid--right {
+  top: 30px;
+  right: 200px;
+  z-index: 0;
+}
+
+.hero2__frame {
+  display: block;
+  position: relative;
+  z-index: 2;
+}
+
+.hero2__photo {
+  position: absolute;
+  z-index: 1;
+}
+
+.hero2__photo--left {
+  top: 10%;
+  left: 10%;
+}
+
+.hero2__photo--right {
+  top: 15%;
+  left: 12%;
+}
+
+.hero2__stars {
+  position: absolute;
+  height: auto;
+  top: -5%;
+  right: 12%;
+  z-index: 2;
+}
+
+.hero2__flower-note {
+  position: absolute;
+  bottom: 7%;
+  left: 16%;
+  z-index: 3;
+  transform: rotate(-25deg);
+}
+
+@media (max-width: 768px) {
+  .hero2__polaroid--left {
+    width: 38%;
+    left: 8%;
+  }
+  
+  .hero2__polaroid--right {
+    width: 42%;
+    right: 10%;
+  }
+  
+  .hero2__stars {
+    width: 24%;
+  }
+  
+  .hero2__flower-note {
+    width: 20%;
+  }
+}

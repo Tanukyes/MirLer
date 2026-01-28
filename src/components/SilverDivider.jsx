@@ -1,4 +1,4 @@
-import silverImage from '../../silver.png'
+import silverImage from '../assets/images/silver.png'
 import './SilverDivider.css'
 
 export default function SilverDivider() {

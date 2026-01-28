@@ -15,3 +15,57 @@
   height: auto;
   vertical-align: top;
 }
+
+.gold-divider__text-container {
+  width: 100%;
+  height: 166px;
+  padding: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 13px;
+  margin-top: -180px;
+}
+
+.gold-divider__title {
+  width: 820px;
+  max-width: 100%;
+  height: 84px;
+  text-align: center;
+  color: #788849;
+  font-size: 78px;
+  font-family: 'Parisienne', cursive;
+  font-weight: 400;
+  word-wrap: break-word;
+}
+
+.gold-divider__date {
+  width: 734px;
+  max-width: 100%;
+  height: 57px;
+  text-align: center;
+  color: #788849;
+  font-size: 58px;
+  font-family: 'Cormorant SC', serif;
+  font-weight: 400;
+  word-wrap: break-word;
+}
+
+@media (max-width: 768px) {
+  .gold-divider__title {
+    font-size: 48px;
+    height: auto;
+  }
+  
+  .gold-divider__date {
+    font-size: 36px;
+    height: auto;
+  }
+  
+  .gold-divider__text-container {
+    height: auto;
+    padding: 20px 10px;
+  }
+}

@@ -1,9 +1,286 @@
 .venue-section {
   width: 100%;
-  height: 860px;
+  min-height: 840px;
   background: #B5BF97;
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 60px 20px;
+}
+
+.venue-section__container {
+  width: 100%;
+  max-width: 1200px;
+  padding: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 16px;
+}
+
+.venue-section__header {
+  width: 100%;
+  max-width: 1200px;
+  padding-bottom: 16px;
+  padding-left: 194px;
+  padding-right: 194px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 17px;
+}
+
+.venue-section__title {
+  text-align: center;
+  color: white;
+  font-size: 84px;
+  font-family: 'Cormorant Infant', serif;
+  font-weight: 400;
+  word-wrap: break-word;
+  margin: 0;
+}
+
+.venue-section__restaurant {
+  width: 748px;
+  max-width: 100%;
+  text-align: center;
+  color: white;
+  font-size: 48px;
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 400;
+  word-wrap: break-word;
+  margin: 0;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.7);
+  padding-bottom: 4px;
+  transition: opacity 0.3s ease, border-color 0.3s ease;
+  cursor: pointer;
+  display: inline-block;
+}
+
+.venue-section__restaurant:hover {
+  opacity: 0.9;
+  border-color: #ffffff;
+}
+
+.venue-section__image-wrapper {
+  width: 100%;
+  max-width: 1200px;
+  padding-left: 16px;
+  padding-right: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 10px;
+}
+
+.venue-section__image {
+  height: auto;
+  display: block;
+}
+
+.venue-section__address {
+  width: 100%;
+  padding-bottom: 35px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 10px;
+}
+
+.venue-section__address-text {
+  width: 842px;
+  max-width: 100%;
+  text-align: center;
+  color: white;
+  font-size: 48px;
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 400;
+  word-wrap: break-word;
+  margin: 0;
+}
+
+.venue-section__link {
+  width: 100%;
+  padding-left: 408px;
+  padding-right: 408px;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+
+.venue-section__link-text {
+  text-align: center;
+  color: white;
+  font-size: 40px;
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 400;
+  word-wrap: break-word;
+  text-decoration: none;
+  border: 1px solid white;
+  border-radius: 999px;
+  background: none;
+  cursor: pointer;
+  padding: 10px 48px;
+  transition: opacity 0.3s ease, background-color 0.3s ease, color 0.3s ease;
+}
+
+.venue-section__link-text:hover {
+  opacity: 1;
+  background: #ffffff;
+  color: #788849;
+}
+
+/* Плашка выбора карт (мобильная версия) */
+.venue-section__map-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+}
+
+.venue-section__map-panel {
+  width: 100%;
+  max-width: 400px;
+  background: #fff;
+  border-radius: 20px 20px 0 0;
+  padding: 24px 20px 32px;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.venue-section__map-panel-title {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 600;
+  color: #2c2c2c;
+  text-align: center;
+  font-family: 'Cormorant Infant', serif;
+}
+
+.venue-section__map-panel-address {
+  margin: 0 0 20px;
+  font-size: 14px;
+  color: #666;
+  text-align: center;
+  font-family: 'Cormorant Garamond', serif;
+  line-height: 1.3;
+}
+
+.venue-section__map-apps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.venue-section__map-app-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 8px;
+  background: #f5f5f5;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform 0.2s, background 0.2s;
+  font-family: inherit;
+}
+
+.venue-section__map-app-btn:hover {
+  background: #eee;
+  transform: scale(1.02);
+}
+
+.venue-section__map-app-btn:active {
+  transform: scale(0.98);
+}
+
+.venue-section__map-app-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--app-color, #888);
+  color: #fff;
+  font-size: 22px;
+  font-weight: 700;
+  border-radius: 12px;
+  line-height: 1;
+}
+
+.venue-section__map-app-name {
+  font-size: 11px;
+  color: #333;
+  text-align: center;
+  line-height: 1.2;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.venue-section__map-panel-close {
+  width: 100%;
+  padding: 14px;
+  background: transparent;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  font-size: 16px;
+  color: #666;
+  cursor: pointer;
+  font-family: 'Cormorant Garamond', serif;
+  transition: background 0.2s;
+}
+
+.venue-section__map-panel-close:hover {
+  background: #f9f9f9;
+}
+
+@media (min-width: 769px) {
+  .venue-section__map-overlay {
+    display: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .venue-section__title {
+    font-size: 48px;
+  }
+  
+  .venue-section__restaurant {
+    font-size: 32px;
+  }
+  
+  .venue-section__address-text {
+    font-size: 28px;
+  }
+  
+  .venue-section__link-text {
+    font-size: 28px;
+    padding: 8px 32px;
+  }
+  
+  .venue-section__header {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+  
+  .venue-section__link {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
 }
