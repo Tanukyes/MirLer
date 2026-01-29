@@ -41,6 +41,23 @@
   display: inline-block;
 }
 
+.calendar-section__month {
+  position: absolute;
+  top: -7%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  color: #788849;
+  font-family: 'Cormorant Infant', serif;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  font-size: clamp(28px, 4vw, 56px);
+  line-height: 1;
+  pointer-events: none;
+  text-align: center;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
 .calendar-section__calendar-img {
   display: block;
   width: auto;
