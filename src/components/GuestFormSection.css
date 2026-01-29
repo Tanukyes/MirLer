@@ -153,28 +153,44 @@
 .guestform-modal-overlay {
   position: fixed;
   inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
   background: rgba(0, 0, 0, 0.5);
-  z-index: 2000;
+  z-index: 99999;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding: calc(16px + env(safe-area-inset-top))
+    calc(16px + env(safe-area-inset-right))
+    calc(16px + env(safe-area-inset-bottom))
+    calc(16px + env(safe-area-inset-left));
   overflow: hidden;
+  overscroll-behavior: none;
   box-sizing: border-box;
 }
 
 .guestform-modal {
   position: relative;
-  width: 420px;
-  max-height: 100vh;
-  max-height: 100dvh;
+  width: min(420px, calc(100vw - 32px - env(safe-area-inset-left) - env(safe-area-inset-right)));
+  max-height: calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
   background: #B5BF97;
   border-radius: 20px;
-  overflow: hidden;
+  /* Allow vertical scroll if needed, but never horizontal "promotka". */
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scrollbar-width: none; /* Firefox */
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
+}
+
+.guestform-modal::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .guestform-modal__bg {
@@ -408,3 +424,4 @@
     padding-bottom: 20px;
   }
 }
+

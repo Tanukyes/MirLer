@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import cvet from '../assets/images/cvet.png'
 import cvett from '../assets/images/cvett.png'
 import bant from '../assets/images/bant.png'
@@ -24,6 +25,8 @@ const GOOGLE_SHEET_URL = import.meta.env.VITE_GOOGLE_SHEET_URL || ''
 export default function GuestFormSection() {
   const [modalOpen, setModalOpen] = useState(false)
   const savedScrollY = useRef(0)
+  const prevViewportContent = useRef(null)
+  const prevViewportScale = useRef(null)
   const [name, setName] = useState('')
   const [attendance, setAttendance] = useState('')
   const [drinks, setDrinks] = useState([])
@@ -105,6 +108,143 @@ export default function GuestFormSection() {
     }
   }, [modalOpen])
 
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+
+    const meta = document.querySelector('meta[name="viewport"]')
+    if (!meta) return
+
+    if (modalOpen) {
+      // Remember how "zoomed out" the desktop-viewport page currently is on mobile browsers.
+      prevViewportScale.current = window.visualViewport?.scale ?? null
+      prevViewportContent.current = meta.getAttribute('content')
+      meta.setAttribute('content', 'width=device-width, initial-scale=1, viewport-fit=cover')
+      return () => {
+        const prev = prevViewportContent.current
+        const scale = prevViewportScale.current
+
+        // Restore previous viewport. If it was the forced desktop width, also restore scale,
+        // otherwise some mobile browsers keep the "zoomed in" state after leaving the modal.
+        if (prev != null && /(^|,)\s*width\s*=\s*1200\b/.test(prev) && typeof scale === 'number' && scale > 0) {
+          meta.setAttribute('content', `width=1200, initial-scale=${scale.toFixed(4)}, viewport-fit=cover`)
+        } else if (prev != null) {
+          meta.setAttribute('content', prev)
+        }
+      }
+    }
+
+    const prev = prevViewportContent.current
+    if (prev != null) meta.setAttribute('content', prev)
+  }, [modalOpen])
+
+  const modalNode =
+    modalOpen && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            className="guestform-modal-overlay"
+            onClick={() => setModalOpen(false)}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Анкета гостя"
+          >
+            <div
+              className="guestform-modal"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="guestform-modal__bg" />
+              <img src={bant} alt="" className="guestform-modal__bant" aria-hidden loading="lazy" decoding="async" />
+              <img src={liliya} alt="" className="guestform-modal__liliya" aria-hidden loading="lazy" decoding="async" />
+
+              <form id="guestform-form" className="guestform-modal__panel" onSubmit={handleSubmit}>
+                <div className="guestform-modal__field">
+                  <label className="guestform-modal__label">Имя и фамилия:</label>
+                  <input
+                    type="text"
+                    className="guestform-modal__input"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="guestform-modal__field">
+                  <span className="guestform-modal__label">Подтвердите присутствие:</span>
+                  <label className="guestform-modal__checkbox-row">
+                    <input
+                      type="radio"
+                      name="attendance"
+                      value="yes"
+                      className="guestform-modal__checkbox"
+                      checked={attendance === 'yes'}
+                      onChange={() => setAttendance('yes')}
+                    />
+                    <span>С радостью приду/придем!</span>
+                  </label>
+                  <label className="guestform-modal__checkbox-row">
+                    <input
+                      type="radio"
+                      name="attendance"
+                      value="no"
+                      className="guestform-modal__checkbox"
+                      checked={attendance === 'no'}
+                      onChange={() => setAttendance('no')}
+                    />
+                    <span>К сожалению не смогу быть</span>
+                  </label>
+                </div>
+                <div className="guestform-modal__field">
+                  <span className="guestform-modal__label guestform-modal__label--drinks">Ваши предпочтения по напиткам:</span>
+                  <div className="guestform-modal__drinks-grid">
+                    {DRINKS.map((drink) => (
+                      <label key={drink} className="guestform-modal__checkbox-row">
+                        <input
+                          type="checkbox"
+                          name="drink"
+                          value={drink}
+                          className="guestform-modal__checkbox"
+                          checked={drinks.includes(drink)}
+                          onChange={() => toggleDrink(drink)}
+                        />
+                        <span>{drink}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <p className="guestform-modal__thanks">Спасибо!</p>
+                {submitStatus === 'success' && (
+                  <p className="guestform-modal__status guestform-modal__status--success">Анкета отправлена!</p>
+                )}
+                {submitStatus === 'error' && (
+                  <p className="guestform-modal__status guestform-modal__status--error">
+                    Не удалось отправить. Проверьте настройку Google Таблицы (см. GOOGLE_SHEET_SETUP.md).
+                  </p>
+                )}
+              </form>
+
+              <button
+                type="submit"
+                form="guestform-form"
+                className="guestform-modal__submit"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Отправка…' : 'Отправить'}
+              </button>
+              <p className="guestform-modal__footer-text">Очень ждем вас!</p>
+              <p className="guestform-modal__footer-sign">С любовью М & В</p>
+
+              <button
+                type="button"
+                className="guestform-modal__close"
+                onClick={() => setModalOpen(false)}
+                aria-label="Закрыть"
+              >
+                ×
+              </button>
+            </div>
+          </div>,
+          document.body
+        )
+      : null
+
   return (
     <section className="guestform-section">
       <div className="guestform-section__container">
@@ -134,109 +274,7 @@ export default function GuestFormSection() {
         </div>
       </div>
 
-      {modalOpen && (
-        <div
-          className="guestform-modal-overlay"
-          onClick={() => setModalOpen(false)}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Анкета гостя"
-        >
-          <div
-            className="guestform-modal"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="guestform-modal__bg" />
-            <img src={bant} alt="" className="guestform-modal__bant" aria-hidden loading="lazy" decoding="async" />
-            <img src={liliya} alt="" className="guestform-modal__liliya" aria-hidden loading="lazy" decoding="async" />
-
-            <form id="guestform-form" className="guestform-modal__panel" onSubmit={handleSubmit}>
-              <div className="guestform-modal__field">
-                <label className="guestform-modal__label">Имя и фамилия:</label>
-                <input
-                  type="text"
-                  className="guestform-modal__input"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="guestform-modal__field">
-                <span className="guestform-modal__label">Подтвердите присутствие:</span>
-                <label className="guestform-modal__checkbox-row">
-                  <input
-                    type="radio"
-                    name="attendance"
-                    value="yes"
-                    className="guestform-modal__checkbox"
-                    checked={attendance === 'yes'}
-                    onChange={() => setAttendance('yes')}
-                  />
-                  <span>С радостью приду/придем!</span>
-                </label>
-                <label className="guestform-modal__checkbox-row">
-                  <input
-                    type="radio"
-                    name="attendance"
-                    value="no"
-                    className="guestform-modal__checkbox"
-                    checked={attendance === 'no'}
-                    onChange={() => setAttendance('no')}
-                  />
-                  <span>К сожалению не смогу быть</span>
-                </label>
-              </div>
-              <div className="guestform-modal__field">
-                <span className="guestform-modal__label guestform-modal__label--drinks">Ваши предпочтения по напиткам:</span>
-                <div className="guestform-modal__drinks-grid">
-                  {DRINKS.map((drink) => (
-                    <label key={drink} className="guestform-modal__checkbox-row">
-                      <input
-                        type="checkbox"
-                        name="drink"
-                        value={drink}
-                        className="guestform-modal__checkbox"
-                        checked={drinks.includes(drink)}
-                        onChange={() => toggleDrink(drink)}
-                      />
-                      <span>{drink}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <p className="guestform-modal__thanks">Спасибо!</p>
-              {submitStatus === 'success' && (
-                <p className="guestform-modal__status guestform-modal__status--success">Анкета отправлена!</p>
-              )}
-              {submitStatus === 'error' && (
-                <p className="guestform-modal__status guestform-modal__status--error">
-                  Не удалось отправить. Проверьте настройку Google Таблицы (см. GOOGLE_SHEET_SETUP.md).
-                </p>
-              )}
-            </form>
-
-            <button
-              type="submit"
-              form="guestform-form"
-              className="guestform-modal__submit"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Отправка…' : 'Отправить'}
-            </button>
-            <p className="guestform-modal__footer-text">Очень ждем вас!</p>
-            <p className="guestform-modal__footer-sign">С любовью М & В</p>
-
-            <button
-              type="button"
-              className="guestform-modal__close"
-              onClick={() => setModalOpen(false)}
-              aria-label="Закрыть"
-            >
-              ×
-            </button>
-          </div>
-        </div>
-      )}
+      {modalNode}
     </section>
   )
 }
