@@ -18,21 +18,21 @@ export default function Hero2() {
       <div className="hero2__content">
         {/* Left polaroid frame with photo */}
         <div className="hero2__polaroid hero2__polaroid--left">
-          <img src={polaroidLeft} alt="" className="hero2__frame" />
-          <img src={photoLeft} alt="" className="hero2__photo hero2__photo--left" />
+          <img src={polaroidLeft} alt="" className="hero2__frame" loading="lazy" decoding="async" />
+          <img src={photoLeft} alt="" className="hero2__photo hero2__photo--left" loading="lazy" decoding="async" />
         </div>
         
         {/* Right polaroid frame with photo */}
         <div className="hero2__polaroid hero2__polaroid--right">
-          <img src={polaroidRight} alt="" className="hero2__frame" />
-          <img src={photoRight} alt="" className="hero2__photo hero2__photo--right" />
+          <img src={polaroidRight} alt="" className="hero2__frame" loading="lazy" decoding="async" />
+          <img src={photoRight} alt="" className="hero2__photo hero2__photo--right" loading="lazy" decoding="async" />
         </div>
         
         {/* Stars decoration */}
-        <img src={stars} alt="" className="hero2__stars" />
+        <img src={stars} alt="" className="hero2__stars" loading="lazy" decoding="async" />
         
         {/* Dried flower with note at bottom left */}
-        <img src={flowerWithNote} alt="" className="hero2__flower-note" />
+        <img src={flowerWithNote} alt="" className="hero2__flower-note" loading="lazy" decoding="async" />
       </div>
     </header>
   )

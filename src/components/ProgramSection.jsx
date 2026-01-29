@@ -33,7 +33,7 @@ export default function ProgramSection() {
   return (
     <section className="program-section">
       <div className="program-section__frame" style={{ backgroundImage: `url(${ramoch})` }}>
-        <img src={bant} alt="" className="program-section__ribbon" aria-hidden />
+        <img src={bant} alt="" className="program-section__ribbon" aria-hidden loading="lazy" decoding="async" />
         <div className="program-section__inner">
           <h2 className="program-section__title">Программа</h2>
           {PROGRAM_ITEMS.map((item) => (

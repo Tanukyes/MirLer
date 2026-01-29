@@ -26,6 +26,12 @@ body {
   max-width: none;
 }
 
+/* Performance: skip rendering offscreen sections when possible (Chrome/Edge). */
+section {
+  content-visibility: auto;
+  contain-intrinsic-size: 900px;
+}
+
 img {
   max-width: 100%;
   height: auto;

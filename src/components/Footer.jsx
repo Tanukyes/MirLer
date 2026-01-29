@@ -9,7 +9,7 @@ export default function Footer() {
           <p className="footer__initials">М&В</p>
         </div>
         <div className="footer__divider">
-          <img src={heart} alt="" className="footer__heart" aria-hidden />
+          <img src={heart} alt="" className="footer__heart" aria-hidden loading="lazy" decoding="async" />
         </div>
         <div className="footer__text-wrap">
           <p className="footer__welcome">Очень ждем вас!</p>

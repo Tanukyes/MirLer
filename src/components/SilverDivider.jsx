@@ -8,6 +8,8 @@ export default function SilverDivider() {
         src={silverImage}
         alt=""
         className="silver-divider__img"
+        loading="lazy"
+        decoding="async"
       />
     </section>
   )

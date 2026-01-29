@@ -9,6 +9,8 @@ export default function GoldDivider() {
           src={goldImage}
           alt=""
           className="gold-divider__img"
+          loading="lazy"
+          decoding="async"
         />
       </section>
       <div className="gold-divider__text-container">

@@ -14,13 +14,13 @@ export default function Hero() {
         aria-hidden
       />
       <div className="hero__decorations">
-        <img src={convertImage} alt="" className="hero__decor hero__decor--convert" />
-        <img src={liliImage} alt="" className="hero__decor hero__decor--lili" />
-        <img src={pearlImage} alt="" className="hero__decor hero__decor--pearl1" />
-        <img src={pearlImage} alt="" className="hero__decor hero__decor--pearl3" />
-        <img src={ringsImage} alt="" className="hero__decor hero__decor--rings" />
+        <img src={convertImage} alt="" className="hero__decor hero__decor--convert" decoding="async" fetchpriority="high" />
+        <img src={liliImage} alt="" className="hero__decor hero__decor--lili" decoding="async" />
+        <img src={pearlImage} alt="" className="hero__decor hero__decor--pearl1" decoding="async" />
+        <img src={pearlImage} alt="" className="hero__decor hero__decor--pearl3" decoding="async" />
+        <img src={ringsImage} alt="" className="hero__decor hero__decor--rings" decoding="async" />
       </div>
-      <img src={pearlImage} alt="" className="hero__decor hero__decor--pearl2" />
+      <img src={pearlImage} alt="" className="hero__decor hero__decor--pearl2" decoding="async" />
       <div className="hero__content">
         <div className="hero__name hero__name--miroslav">
           Мирослав

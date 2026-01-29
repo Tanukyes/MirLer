@@ -43,17 +43,30 @@ export default function VenueSection() {
       <div className="venue-section__container">
         <div className="venue-section__header">
           <h2 className="venue-section__title">Место проведения</h2>
-          <a 
-            href="https://palmira-garden.com/banquet/" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="venue-section__restaurant"
-          >
-            Ресторан "Семейные традиции"
-          </a>
+          <div className="venue-section__restaurant-wrap">
+            <a
+              href="https://palmira-garden.com/banquet/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="venue-section__restaurant"
+              aria-label='Открыть сайт ресторана "Семейные традиции" (откроется в новой вкладке)'
+            >
+              <span className="venue-section__restaurant-label">Ресторан "Семейные традиции"</span>
+              <span className="venue-section__restaurant-icon" aria-hidden>
+                ↗
+              </span>
+            </a>
+            <div className="venue-section__restaurant-hint">Нажмите, чтобы открыть сайт</div>
+          </div>
         </div>
         <div className="venue-section__image-wrapper">
-          <img src={placeImage} alt="Ресторан Семейные традиции" className="venue-section__image" />
+          <img
+            src={placeImage}
+            alt="Ресторан Семейные традиции"
+            className="venue-section__image"
+            loading="lazy"
+            decoding="async"
+          />
         </div>
         <div className="venue-section__address">
           <p className="venue-section__address-text">

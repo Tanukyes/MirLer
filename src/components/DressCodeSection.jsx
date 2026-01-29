@@ -13,7 +13,7 @@ export default function DressCodeSection() {
     <section className="dresscode-section">
       <h2 className="dresscode-section__title">Дресс-код</h2>
       <div className="dresscode-section__content">
-        <img src={pion} alt="" className="dresscode-section__flower dresscode-section__flower--left" aria-hidden />
+        <img src={pion} alt="" className="dresscode-section__flower dresscode-section__flower--left" aria-hidden loading="lazy" decoding="async" />
         <div className="dresscode-section__text-block">
           <p className="dresscode-section__text">
             Нам будет очень приятно, если вы поддержите нашу цветовую палитру. Но помните, что для нас главное — ваше присутствие, поэтому ограничений нет.
@@ -23,12 +23,12 @@ export default function DressCodeSection() {
           <div className="dresscode-section__swatches">
             {SWATCHES.map((src, i) => (
               <div key={i} className="dresscode-section__swatch-wrap">
-                <img src={src} alt="" className="dresscode-section__swatch" aria-hidden />
+                <img src={src} alt="" className="dresscode-section__swatch" aria-hidden loading="lazy" decoding="async" />
               </div>
             ))}
           </div>
         </div>
-        <img src={liliya} alt="" className="dresscode-section__flower dresscode-section__flower--right" aria-hidden />
+        <img src={liliya} alt="" className="dresscode-section__flower dresscode-section__flower--right" aria-hidden loading="lazy" decoding="async" />
       </div>
     </section>
   )

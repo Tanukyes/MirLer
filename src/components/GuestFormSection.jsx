@@ -109,8 +109,8 @@ export default function GuestFormSection() {
     <section className="guestform-section">
       <div className="guestform-section__container">
         <div className="guestform-section__bg" aria-hidden />
-        <img src={cvet} alt="" className="guestform-section__flower guestform-section__flower--left" aria-hidden />
-        <img src={cvett} alt="" className="guestform-section__flower guestform-section__flower--right" aria-hidden />
+        <img src={cvet} alt="" className="guestform-section__flower guestform-section__flower--left" aria-hidden loading="lazy" decoding="async" />
+        <img src={cvett} alt="" className="guestform-section__flower guestform-section__flower--right" aria-hidden loading="lazy" decoding="async" />
         <div className="guestform-section__content">
           <div className="guestform-section__header">
             <h2 className="guestform-section__title">Анкета гостя</h2>
@@ -147,8 +147,8 @@ export default function GuestFormSection() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="guestform-modal__bg" />
-            <img src={bant} alt="" className="guestform-modal__bant" aria-hidden />
-            <img src={liliya} alt="" className="guestform-modal__liliya" aria-hidden />
+            <img src={bant} alt="" className="guestform-modal__bant" aria-hidden loading="lazy" decoding="async" />
+            <img src={liliya} alt="" className="guestform-modal__liliya" aria-hidden loading="lazy" decoding="async" />
 
             <form id="guestform-form" className="guestform-modal__panel" onSubmit={handleSubmit}>
               <div className="guestform-modal__field">
