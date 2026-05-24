@@ -67,10 +67,18 @@ async function ydGetPublicImageUrl(publicKey) {
     console.log('[YD] sizes array:', sizes)
     console.log('[YD] file field:', data.file)
     console.log('[YD] preview field:', data.preview)
-    // Берём максимально большой размер (ORIGINAL или последний)
-    const original = sizes.find((s) => s.name === 'ORIGINAL') || sizes[sizes.length - 1]
-    console.log('[YD] chosen size:', original)
-    return original?.url || data.file || null
+    // GitHub Pages + Yandex Disk:
+    // ORIGINAL часто даёт 403 Forbidden из-за hotlink/CORS ограничений.
+    // Используем preview/DEFAULT/L вместо ORIGINAL.
+    const chosen =
+      sizes.find((s) => s.name === 'DEFAULT') ||
+      sizes.find((s) => s.name === 'L') ||
+      sizes.find((s) => s.name === 'M') ||
+      sizes[sizes.length - 1]
+
+    console.log('[YD] chosen size:', chosen)
+
+    return chosen?.url || data.preview || data.file || null
   } catch (e) {
     console.error('[YD] ydGetPublicImageUrl error:', e)
     return null
