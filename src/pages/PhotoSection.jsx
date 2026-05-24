@@ -49,6 +49,24 @@ async function ydPublishFile(token, path) {
   ).catch(() => {})
 }
 
+// Получаем прямую ссылку на картинку через публичный API (без авторизации, CORS разрешён)
+// /public/resources возвращает sizes[] с реальными URL картинок
+async function ydGetPublicImageUrl(publicKey) {
+  try {
+    const res = await fetch(
+      `https://cloud-api.yandex.net/v1/disk/public/resources?public_key=${encodeURIComponent(publicKey)}&fields=sizes`,
+    )
+    if (!res.ok) return null
+    const data = await res.json()
+    const sizes = data.sizes || []
+    // Берём максимально большой размер (ORIGINAL или последний)
+    const original = sizes.find((s) => s.name === 'ORIGINAL') || sizes[sizes.length - 1]
+    return original?.url || null
+  } catch {
+    return null
+  }
+}
+
 async function ydListPhotos(token, folder) {
   const listUrl = `https://cloud-api.yandex.net/v1/disk/resources?path=disk:/${folder}&limit=100&sort=-created&fields=_embedded,_embedded.items.name,_embedded.items.type,_embedded.items.public_url,_embedded.items.created`
 
@@ -58,22 +76,35 @@ async function ydListPhotos(token, folder) {
   const items = data._embedded?.items || []
   const photos = items.filter((i) => i.type === 'file' && /\.(jpg|jpeg|png|webp)$/i.test(i.name))
 
-  // Публикуем все файлы без public_url (повторная публикация безопасна — 200/409)
+  // Публикуем файлы без public_url
   const unpublished = photos.filter((i) => !i.public_url)
   if (unpublished.length > 0) {
     await Promise.all(
       unpublished.map((i) => ydPublishFile(token, `disk:/${folder}/${i.name}`))
     )
-    // Перечитываем после публикации
     const res2 = await fetch(listUrl, { headers: { Authorization: `OAuth ${token}` } })
-    if (!res2.ok) return photos.filter((i) => i.public_url).map((i) => ({ name: i.name, publicUrl: i.public_url }))
-    const data2 = await res2.json()
-    return (data2._embedded?.items || [])
-      .filter((i) => i.type === 'file' && /\.(jpg|jpeg|png|webp)$/i.test(i.name) && i.public_url)
-      .map((i) => ({ name: i.name, publicUrl: i.public_url }))
+    if (res2.ok) {
+      const data2 = await res2.json()
+      const refreshed = (data2._embedded?.items || []).filter(
+        (i) => i.type === 'file' && /\.(jpg|jpeg|png|webp)$/i.test(i.name)
+      )
+      return await resolveImageUrls(refreshed)
+    }
   }
 
-  return photos.filter((i) => i.public_url).map((i) => ({ name: i.name, publicUrl: i.public_url }))
+  return await resolveImageUrls(photos)
+}
+
+// Для каждого файла с public_url получаем прямую ссылку на картинку
+async function resolveImageUrls(photos) {
+  return Promise.all(
+    photos
+      .filter((i) => i.public_url)
+      .map(async (i) => {
+        const imgUrl = await ydGetPublicImageUrl(i.public_url)
+        return { name: i.name, publicUrl: i.public_url, imgUrl }
+      })
+  )
 }
 
 
@@ -114,9 +145,8 @@ export default function PhotoSection() {
     setPhotosLoading(true)
     try {
       const list = await ydListPhotos(YANDEX_TOKEN, YANDEX_FOLDER)
-      // publicUrl (disk.yandex.ru/i/XXX) ставим прямо в <img src> —
-      // браузер обрабатывает редирект без CORS, fetch не нужен
-      setPhotos(list.map((photo) => ({ ...photo, downloadUrl: photo.publicUrl })))
+      // imgUrl — прямая ссылка на картинку, CORS разрешён Яндексом
+      setPhotos(list.map((photo) => ({ ...photo, downloadUrl: photo.imgUrl || photo.publicUrl })))
     } catch (e) {
       console.error('Ошибка загрузки фото:', e)
     } finally {
@@ -302,7 +332,7 @@ export default function PhotoSection() {
   // ── Лайтбокс ─────────────────────────────────────────────────────
   const openLightbox = (photo) => {
     // publicUrl ставим напрямую в <img src> — браузер грузит без CORS
-    setLightboxUrl(photo.publicUrl || photo.downloadUrl || null)
+    setLightboxUrl(photo.imgUrl || photo.publicUrl || photo.downloadUrl || null)
   }
 
   useEffect(() => {
