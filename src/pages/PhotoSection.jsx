@@ -43,7 +43,7 @@ async function ydPublishAndGetUrl(token, folder, filename) {
 
 async function ydListPhotos(token, folder) {
   const res = await fetch(
-    `https://cloud-api.yandex.net/v1/disk/resources?path=disk:/${folder}&limit=100&sort=-created&fields=_embedded`,
+    `https://cloud-api.yandex.net/v1/disk/resources?path=disk:/${folder}&limit=100&sort=-created&fields=_embedded,_embedded.items.name,_embedded.items.type,_embedded.items.preview,_embedded.items.public_url,_embedded.items.created&preview_size=300x300&preview_crop=false`,
     { headers: { Authorization: `OAuth ${token}` } }
   )
   if (!res.ok) return []
@@ -52,6 +52,19 @@ async function ydListPhotos(token, folder) {
   return items
     .filter((i) => i.type === 'file' && /\.(jpg|jpeg|png|webp)$/i.test(i.name))
     .map((i) => ({ name: i.name, preview: i.preview || null, publicUrl: i.public_url || null }))
+}
+
+async function ydGetPreviewBlob(token, previewUrl) {
+  try {
+    const res = await fetch(previewUrl, {
+      headers: { Authorization: `OAuth ${token}` },
+    })
+    if (!res.ok) return null
+    const blob = await res.blob()
+    return URL.createObjectURL(blob)
+  } catch {
+    return null
+  }
 }
 
 async function ydGetDirectDownload(token, folder, filename) {
@@ -91,6 +104,8 @@ export default function PhotoSection() {
 
   const [photos, setPhotos] = useState([])
   const [photosLoading, setPhotosLoading] = useState(false)
+  // Кэш blob-URL для превью: { [name]: objectUrl }
+  const previewCacheRef = useRef({})
 
   const [lightboxUrl, setLightboxUrl] = useState(null)
   const [lightboxLoading, setLightboxLoading] = useState(false)
@@ -101,7 +116,20 @@ export default function PhotoSection() {
     setPhotosLoading(true)
     try {
       const list = await ydListPhotos(YANDEX_TOKEN, YANDEX_FOLDER)
-      setPhotos(list)
+      // Для каждого фото с preview-ссылкой — загружаем blob через токен
+      const withBlobs = await Promise.all(
+        list.map(async (photo) => {
+          if (!photo.preview) return photo
+          // Используем кэш чтобы не перезагружать
+          if (previewCacheRef.current[photo.name]) {
+            return { ...photo, previewBlob: previewCacheRef.current[photo.name] }
+          }
+          const blobUrl = await ydGetPreviewBlob(YANDEX_TOKEN, photo.preview)
+          if (blobUrl) previewCacheRef.current[photo.name] = blobUrl
+          return { ...photo, previewBlob: blobUrl }
+        })
+      )
+      setPhotos(withBlobs)
     } catch (e) {
       console.error('Ошибка загрузки фото:', e)
     } finally {
@@ -303,6 +331,8 @@ export default function PhotoSection() {
       stopCamera()
       if (capturedUrl) URL.revokeObjectURL(capturedUrl)
       queue.forEach((i) => URL.revokeObjectURL(i.url))
+      // Освобождаем blob-URL превью
+      Object.values(previewCacheRef.current).forEach((url) => URL.revokeObjectURL(url))
     }
   }, []) // eslint-disable-line
 
@@ -383,7 +413,7 @@ export default function PhotoSection() {
                       Переснять
                     </button>
                     <button className="photo-section__btn" onClick={uploadCameraPhoto} disabled={uploading || !YANDEX_TOKEN}>
-                      {uploading ? 'Загружаем…' : '💾 Сохранить'}
+                      {uploading ? 'Загружаем…' : 'Сохранить'}
                     </button>
                     <button className="photo-section__btn photo-section__btn--ghost" onClick={closeAll} disabled={uploading}>
                       Отмена
@@ -494,9 +524,9 @@ export default function PhotoSection() {
                 onClick={() => openLightbox(photo)}
                 title="Открыть фото"
               >
-                {photo.preview ? (
+                {photo.previewBlob ? (
                   <img
-                    src={photo.preview}
+                    src={photo.previewBlob}
                     alt={photo.name}
                     className="photo-section__thumb"
                     loading="lazy"
@@ -506,7 +536,7 @@ export default function PhotoSection() {
                     }}
                   />
                 ) : null}
-                <span className="photo-section__thumb-placeholder" style={{ display: photo.preview ? 'none' : 'flex' }}>
+                <span className="photo-section__thumb-placeholder" style={{ display: photo.previewBlob ? 'none' : 'flex' }}>
                   🖼
                 </span>
               </button>

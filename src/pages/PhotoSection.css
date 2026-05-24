@@ -94,8 +94,8 @@
 }
 
 .photo-section__btn--ghost {
-  background: rgba(255,255,255,0.15);
-  color: #fff;
+  background: rgba(255, 255, 255, 0.75);
+  color: black;
   border-color: rgba(255,255,255,0.4);
   font-size: 14px;
   padding: 10px 20px;
