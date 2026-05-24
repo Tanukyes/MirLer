@@ -43,7 +43,7 @@ async function ydPublishAndGetUrl(token, folder, filename) {
 
 async function ydListPhotos(token, folder) {
   const res = await fetch(
-    `https://cloud-api.yandex.net/v1/disk/resources?path=disk:/${folder}&limit=100&sort=-created&fields=_embedded,_embedded.items.name,_embedded.items.type,_embedded.items.preview,_embedded.items.public_url,_embedded.items.created&preview_size=300x300&preview_crop=false`,
+    `https://cloud-api.yandex.net/v1/disk/resources?path=disk:/${folder}&limit=100&sort=-created&fields=_embedded,_embedded.items.name,_embedded.items.type,_embedded.items.public_url,_embedded.items.created`,
     { headers: { Authorization: `OAuth ${token}` } }
   )
   if (!res.ok) return []
@@ -51,23 +51,11 @@ async function ydListPhotos(token, folder) {
   const items = data._embedded?.items || []
   return items
     .filter((i) => i.type === 'file' && /\.(jpg|jpeg|png|webp)$/i.test(i.name))
-    .map((i) => ({ name: i.name, preview: i.preview || null, publicUrl: i.public_url || null }))
+    .map((i) => ({ name: i.name, publicUrl: i.public_url || null }))
 }
 
-async function ydGetPreviewBlob(token, previewUrl) {
-  try {
-    const res = await fetch(previewUrl, {
-      headers: { Authorization: `OAuth ${token}` },
-    })
-    if (!res.ok) return null
-    const blob = await res.blob()
-    return URL.createObjectURL(blob)
-  } catch {
-    return null
-  }
-}
-
-async function ydGetDirectDownload(token, folder, filename) {
+// Получаем прямую ссылку на скачивание через API (поддерживает CORS)
+async function ydGetDownloadUrl(token, folder, filename) {
   const path = `disk:/${folder}/${filename}`
   const res = await fetch(
     `https://cloud-api.yandex.net/v1/disk/resources/download?path=${encodeURIComponent(path)}`,
@@ -116,20 +104,19 @@ export default function PhotoSection() {
     setPhotosLoading(true)
     try {
       const list = await ydListPhotos(YANDEX_TOKEN, YANDEX_FOLDER)
-      // Для каждого фото с preview-ссылкой — загружаем blob через токен
-      const withBlobs = await Promise.all(
+      // Для каждого фото получаем прямую ссылку на скачивание (CORS-совместима)
+      const withUrls = await Promise.all(
         list.map(async (photo) => {
-          if (!photo.preview) return photo
-          // Используем кэш чтобы не перезагружать
+          // Используем кэш чтобы не делать лишние запросы при поллинге
           if (previewCacheRef.current[photo.name]) {
-            return { ...photo, previewBlob: previewCacheRef.current[photo.name] }
+            return { ...photo, downloadUrl: previewCacheRef.current[photo.name] }
           }
-          const blobUrl = await ydGetPreviewBlob(YANDEX_TOKEN, photo.preview)
-          if (blobUrl) previewCacheRef.current[photo.name] = blobUrl
-          return { ...photo, previewBlob: blobUrl }
+          const url = await ydGetDownloadUrl(YANDEX_TOKEN, YANDEX_FOLDER, photo.name)
+          if (url) previewCacheRef.current[photo.name] = url
+          return { ...photo, downloadUrl: url }
         })
       )
-      setPhotos(withBlobs)
+      setPhotos(withUrls)
     } catch (e) {
       console.error('Ошибка загрузки фото:', e)
     } finally {
@@ -314,13 +301,19 @@ export default function PhotoSection() {
 
   // ── Лайтбокс ─────────────────────────────────────────────────────
   const openLightbox = async (photo) => {
+    // Если уже есть download URL в кэше — используем его сразу
+    if (photo.downloadUrl) {
+      setLightboxUrl(photo.downloadUrl)
+      setLightboxLoading(false)
+      return
+    }
     setLightboxUrl(null)
     setLightboxLoading(true)
     try {
-      const url = await ydGetDirectDownload(YANDEX_TOKEN, YANDEX_FOLDER, photo.name)
-      setLightboxUrl(url || photo.publicUrl)
+      const url = await ydGetDownloadUrl(YANDEX_TOKEN, YANDEX_FOLDER, photo.name)
+      setLightboxUrl(url || null)
     } catch {
-      setLightboxUrl(photo.publicUrl)
+      setLightboxUrl(null)
     } finally {
       setLightboxLoading(false)
     }
@@ -331,8 +324,6 @@ export default function PhotoSection() {
       stopCamera()
       if (capturedUrl) URL.revokeObjectURL(capturedUrl)
       queue.forEach((i) => URL.revokeObjectURL(i.url))
-      // Освобождаем blob-URL превью
-      Object.values(previewCacheRef.current).forEach((url) => URL.revokeObjectURL(url))
     }
   }, []) // eslint-disable-line
 
@@ -524,9 +515,9 @@ export default function PhotoSection() {
                 onClick={() => openLightbox(photo)}
                 title="Открыть фото"
               >
-                {photo.previewBlob ? (
+                {photo.downloadUrl ? (
                   <img
-                    src={photo.previewBlob}
+                    src={photo.downloadUrl}
                     alt={photo.name}
                     className="photo-section__thumb"
                     loading="lazy"
@@ -536,7 +527,7 @@ export default function PhotoSection() {
                     }}
                   />
                 ) : null}
-                <span className="photo-section__thumb-placeholder" style={{ display: photo.previewBlob ? 'none' : 'flex' }}>
+                <span className="photo-section__thumb-placeholder" style={{ display: photo.downloadUrl ? 'none' : 'flex' }}>
                   🖼
                 </span>
               </button>
