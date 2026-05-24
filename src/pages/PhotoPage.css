@@ -1,0 +1,39 @@
+.photo-page {
+  min-height: 100vh;
+  background: #f5f0e8;
+  position: relative;
+}
+
+.photo-page__back {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 100;
+  font-family: 'Cormorant Infant', serif;
+  font-weight: 300;
+  font-size: 20px;
+  color: white;
+  background: rgba(61, 50, 36, 0.65);
+  border: 1px solid rgba(255,255,255,0.4);
+  border-radius: 30px;
+  padding: 8px 22px;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: background 0.2s, transform 0.15s;
+  white-space: nowrap;
+}
+
+.photo-page__back:hover {
+  background: rgba(61, 50, 36, 0.85);
+  transform: translateX(-2px);
+}
+
+@media (max-width: 480px) {
+  .photo-page__back {
+    font-size: 16px;
+    padding: 7px 16px;
+    top: 12px;
+    left: 12px;
+  }
+}

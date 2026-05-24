@@ -1,0 +1,185 @@
+/* Копирует структуру guestform-section для единообразия */
+
+.phototeaser-section {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+}
+
+.phototeaser-section__container {
+  width: 100%;
+  max-width: 1201px;
+  height: 689px;
+  position: relative;
+  overflow: hidden;
+  border-radius: 10px;
+}
+
+.phototeaser-section__bg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background: #B5BF97;
+  z-index: 0;
+}
+
+/* Декоративные полукружия из чистого CSS — не нужны доп-картинки */
+.phototeaser-section__bg::before,
+.phototeaser-section__bg::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.18;
+  background: rgba(255,255,255,0.6);
+  pointer-events: none;
+}
+
+.phototeaser-section__bg::before {
+  width: 560px;
+  height: 760px;
+  left: -140px;
+  top: 120px;
+}
+
+.phototeaser-section__bg::after {
+  width: 500px;
+  height: 460px;
+  right: -120px;
+  top: -100px;
+}
+
+.phototeaser-section__content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  padding: 10px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.phototeaser-section__header {
+  width: 100%;
+  height: 156px;
+  padding-left: 175px;
+  padding-right: 175px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+}
+
+.phototeaser-section__title {
+  margin: 0;
+  text-align: center;
+  color: white;
+  font-size: 96px;
+  font-family: 'Cormorant Infant', serif;
+  font-weight: 300;
+  word-wrap: break-word;
+}
+
+.phototeaser-section__text-block {
+  width: 100%;
+  height: 250px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+}
+
+.phototeaser-section__text {
+  margin: 0;
+  width: 822px;
+  max-width: 100%;
+  text-align: center;
+  color: white;
+  font-size: 54px;
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 300;
+  word-wrap: break-word;
+  line-height: 1.25;
+}
+
+.phototeaser-section__action {
+  width: 100%;
+  flex: 1;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+}
+
+.phototeaser-section__btn {
+  width: 802px;
+  max-width: calc(100% - 40px);
+  min-height: 144px;
+  padding: 8px 92px;
+  border: none;
+  border-radius: 15px;
+  outline: 2px white solid;
+  outline-offset: -2px;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  font-size: 64px;
+  font-family: 'Cormorant Infant', serif;
+  font-weight: 300;
+  word-wrap: break-word;
+  transition: opacity 0.3s ease, background 0.3s ease;
+  text-decoration: none;
+}
+
+.phototeaser-section__btn:hover {
+  opacity: 0.9;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* ── Адаптив (идентично guestform) ───────────────────────────────── */
+@media (max-width: 768px) {
+  .phototeaser-section__container {
+    height: auto;
+    min-height: 560px;
+  }
+
+  .phototeaser-section__title {
+    font-size: 48px;
+  }
+
+  .phototeaser-section__text {
+    font-size: 32px;
+  }
+
+  .phototeaser-section__btn {
+    font-size: 36px;
+    padding: 12px 24px;
+  }
+
+  .phototeaser-section__header {
+    padding-left: 20px;
+    padding-right: 20px;
+    height: auto;
+    padding-top: 20px;
+    padding-bottom: 20px;
+  }
+}
