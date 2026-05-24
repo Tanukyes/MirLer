@@ -404,7 +404,7 @@ export default function PhotoSection() {
                       Переснять
                     </button>
                     <button className="photo-section__btn" onClick={uploadCameraPhoto} disabled={uploading || !YANDEX_TOKEN}>
-                      {uploading ? 'Загружаем…' : 'Сохранить'}
+                      {uploading ? 'Загружаем…' : '💾 Сохранить'}
                     </button>
                     <button className="photo-section__btn photo-section__btn--ghost" onClick={closeAll} disabled={uploading}>
                       Отмена

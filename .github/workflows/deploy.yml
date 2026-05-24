@@ -32,6 +32,10 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          VITE_YANDEX_DISK_TOKEN: ${{ secrets.VITE_YANDEX_DISK_TOKEN }}
+          VITE_YANDEX_DISK_FOLDER: ${{ secrets.VITE_YANDEX_DISK_FOLDER }}
+          VITE_GOOGLE_SHEET_URL: ${{ secrets.VITE_GOOGLE_SHEET_URL }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -51,4 +55,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-
