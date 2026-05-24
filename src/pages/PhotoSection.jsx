@@ -269,23 +269,52 @@ export default function PhotoSection() {
     await startCamera(next)
   }
 
-  const takePhoto = () => {
+  
+  const takePhoto = async () => {
     const video = videoRef.current
     const canvas = canvasRef.current
+
     if (!video || !canvas) return
+
     canvas.width = video.videoWidth
     canvas.height = video.videoHeight
-    canvas.getContext('2d').drawImage(video, 0, 0)
-    canvas.toBlob(
-      (blob) => {
-        setCapturedBlob(blob)
-        setCapturedUrl(URL.createObjectURL(blob))
-        stopCamera()
-        setMode('preview')
-      },
-      'image/jpeg',
-      0.92
+
+    const ctx = canvas.getContext('2d')
+
+    // зеркалим фронтальную камеру
+    if (facingMode === 'user') {
+      ctx.translate(canvas.width, 0)
+      ctx.scale(-1, 1)
+    }
+
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+
+    // сбрасываем transform
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
+
+    const blob = await new Promise((resolve) =>
+      canvas.toBlob(resolve, 'image/jpeg', 0.95)
     )
+
+    if (!blob) {
+      console.error('Failed to create blob')
+      return
+    }
+
+    const file = new File(
+      [blob],
+      `photo_${Date.now()}.jpg`,
+      {
+        type: 'image/jpeg',
+      }
+    )
+
+    setCapturedBlob(file)
+    setCapturedUrl(URL.createObjectURL(file))
+
+    stopCamera()
+    setMode('preview')
+  
   }
 
   const retakeCamera = async () => {
@@ -482,7 +511,19 @@ export default function PhotoSection() {
           {mode === 'camera' && (
             <div className="photo-section__camera-wrap">
               <div className="photo-section__video-wrap">
-                <video ref={videoRef} className="photo-section__video" playsInline muted autoPlay />
+                <video
+                  ref={videoRef}
+                  className="photo-section__video"
+                  playsInline
+                  muted
+                  autoPlay
+                  style={{
+                    transform:
+                      facingMode === 'user'
+                        ? 'scaleX(-1)'
+                        : 'scaleX(1)',
+                  }}
+                />
                 <canvas ref={canvasRef} style={{ display: 'none' }} />
                 <div className="photo-section__camera-controls">
                   <button className="photo-section__btn photo-section__btn--ghost" onClick={closeAll}>
