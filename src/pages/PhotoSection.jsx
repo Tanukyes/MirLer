@@ -9,10 +9,11 @@ const MAX_FILES = 10
 
 // ─── Яндекс.Диск API ────────────────────────────────────────────────
 async function ydEnsureFolder(token, folder) {
+  // 409 = папка уже существует, это нормально
   await fetch(`https://cloud-api.yandex.net/v1/disk/resources?path=disk:/${folder}`, {
     method: 'PUT',
     headers: { Authorization: `OAuth ${token}` },
-  })
+  }).catch(() => {})
 }
 
 async function ydUpload(token, folder, filename, blob) {
@@ -41,45 +42,38 @@ async function ydPublishAndGetUrl(token, folder, filename) {
   return data.public_url || null
 }
 
+async function ydPublishFile(token, path) {
+  await fetch(
+    `https://cloud-api.yandex.net/v1/disk/resources/publish?path=${encodeURIComponent(path)}`,
+    { method: 'PUT', headers: { Authorization: `OAuth ${token}` } }
+  ).catch(() => {})
+}
+
 async function ydListPhotos(token, folder) {
-  const res = await fetch(
-    `https://cloud-api.yandex.net/v1/disk/resources?path=disk:/${folder}&limit=100&sort=-created&fields=_embedded,_embedded.items.name,_embedded.items.type,_embedded.items.public_url,_embedded.items.created`,
-    { headers: { Authorization: `OAuth ${token}` } }
-  )
+  const listUrl = `https://cloud-api.yandex.net/v1/disk/resources?path=disk:/${folder}&limit=100&sort=-created&fields=_embedded,_embedded.items.name,_embedded.items.type,_embedded.items.public_url,_embedded.items.created`
+
+  const res = await fetch(listUrl, { headers: { Authorization: `OAuth ${token}` } })
   if (!res.ok) return []
   const data = await res.json()
   const items = data._embedded?.items || []
   const photos = items.filter((i) => i.type === 'file' && /\.(jpg|jpeg|png|webp)$/i.test(i.name))
 
-  // Публикуем файлы у которых ещё нет public_url
-  await Promise.all(
-    photos
-      .filter((i) => !i.public_url)
-      .map((i) =>
-        fetch(
-          `https://cloud-api.yandex.net/v1/disk/resources/publish?path=${encodeURIComponent(`disk:/${folder}/${i.name}`)}`,
-          { method: 'PUT', headers: { Authorization: `OAuth ${token}` } }
-        ).catch(() => {})
-      )
-  )
-
-  // Перечитываем если были непубличные
-  const needReload = photos.some((i) => !i.public_url)
-  let finalPhotos = photos
-  if (needReload) {
-    const res2 = await fetch(
-      `https://cloud-api.yandex.net/v1/disk/resources?path=disk:/${folder}&limit=100&sort=-created&fields=_embedded,_embedded.items.name,_embedded.items.type,_embedded.items.public_url,_embedded.items.created`,
-      { headers: { Authorization: `OAuth ${token}` } }
+  // Публикуем все файлы без public_url (повторная публикация безопасна — 200/409)
+  const unpublished = photos.filter((i) => !i.public_url)
+  if (unpublished.length > 0) {
+    await Promise.all(
+      unpublished.map((i) => ydPublishFile(token, `disk:/${folder}/${i.name}`))
     )
-    if (res2.ok) {
-      const data2 = await res2.json()
-      finalPhotos = (data2._embedded?.items || []).filter(
-        (i) => i.type === 'file' && /\.(jpg|jpeg|png|webp)$/i.test(i.name)
-      )
-    }
+    // Перечитываем после публикации
+    const res2 = await fetch(listUrl, { headers: { Authorization: `OAuth ${token}` } })
+    if (!res2.ok) return photos.filter((i) => i.public_url).map((i) => ({ name: i.name, publicUrl: i.public_url }))
+    const data2 = await res2.json()
+    return (data2._embedded?.items || [])
+      .filter((i) => i.type === 'file' && /\.(jpg|jpeg|png|webp)$/i.test(i.name) && i.public_url)
+      .map((i) => ({ name: i.name, publicUrl: i.public_url }))
   }
 
-  return finalPhotos.map((i) => ({ name: i.name, publicUrl: i.public_url || null }))
+  return photos.filter((i) => i.public_url).map((i) => ({ name: i.name, publicUrl: i.public_url }))
 }
 
 
