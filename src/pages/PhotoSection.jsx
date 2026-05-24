@@ -7,11 +7,9 @@ const YANDEX_FOLDER = import.meta.env.VITE_YANDEX_DISK_FOLDER || 'wedding-photos
 const GALLERY_REFRESH_MS = 30_000
 const MAX_FILES = 10
 
-const CLOUDINARY_CLOUD_NAME =
-  import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || ''
+const CLOUDINARY_CLOUD_NAME = 'dvqen4u01'
 
-const CLOUDINARY_UPLOAD_PRESET =
-  import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || ''
+const CLOUDINARY_UPLOAD_PRESET = 'mirler_uploads'
 
 const LOCAL_STORAGE_KEY = 'mirler_local_photos'
 
