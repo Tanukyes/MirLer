@@ -54,15 +54,25 @@ async function ydPublishFile(token, path) {
 async function ydGetPublicImageUrl(publicKey) {
   try {
     const res = await fetch(
-      `https://cloud-api.yandex.net/v1/disk/public/resources?public_key=${encodeURIComponent(publicKey)}&fields=sizes`,
+      `https://cloud-api.yandex.net/v1/disk/public/resources?public_key=${encodeURIComponent(publicKey)}&fields=sizes,file,preview,media_type,mime_type`,
     )
-    if (!res.ok) return null
+    console.log('[YD] public/resources status:', res.status, 'for key:', publicKey)
+    if (!res.ok) {
+      console.error('[YD] public/resources failed:', res.status, res.statusText)
+      return null
+    }
     const data = await res.json()
+    console.log('[YD] public/resources response:', JSON.stringify(data, null, 2))
     const sizes = data.sizes || []
+    console.log('[YD] sizes array:', sizes)
+    console.log('[YD] file field:', data.file)
+    console.log('[YD] preview field:', data.preview)
     // Берём максимально большой размер (ORIGINAL или последний)
     const original = sizes.find((s) => s.name === 'ORIGINAL') || sizes[sizes.length - 1]
-    return original?.url || null
-  } catch {
+    console.log('[YD] chosen size:', original)
+    return original?.url || data.file || null
+  } catch (e) {
+    console.error('[YD] ydGetPublicImageUrl error:', e)
     return null
   }
 }
@@ -101,7 +111,9 @@ async function resolveImageUrls(photos) {
     photos
       .filter((i) => i.public_url)
       .map(async (i) => {
+        console.log('[YD] resolving image for:', i.name, 'public_url:', i.public_url)
         const imgUrl = await ydGetPublicImageUrl(i.public_url)
+        console.log('[YD] resolved imgUrl for', i.name, ':', imgUrl)
         return { name: i.name, publicUrl: i.public_url, imgUrl }
       })
   )
@@ -146,6 +158,7 @@ export default function PhotoSection() {
     try {
       const list = await ydListPhotos(YANDEX_TOKEN, YANDEX_FOLDER)
       // imgUrl — прямая ссылка на картинку, CORS разрешён Яндексом
+      console.log('[YD] photos list resolved:', list)
       setPhotos(list.map((photo) => ({ ...photo, downloadUrl: photo.imgUrl || photo.publicUrl })))
     } catch (e) {
       console.error('Ошибка загрузки фото:', e)
