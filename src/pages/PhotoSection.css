@@ -94,8 +94,8 @@
 }
 
 .photo-section__btn--ghost {
-  background: rgba(255, 151, 151, 0.75);
-  color: black;
+  background: rgba(255,255,255,0.15);
+  color: #fff;
   border-color: rgba(255,255,255,0.4);
   font-size: 14px;
   padding: 10px 20px;
@@ -421,18 +421,83 @@
 
 /* ── Адаптив ─────────────────────────────────────────────────────── */
 @media (max-width: 600px) {
-  .photo-section__container {
-    padding: 32px 16px 40px;
+  .photo-section {
+    padding: 0;
   }
 
-  .photo-section__gallery {
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 8px;
+  .photo-section__container {
+    border-radius: 0;
+    padding: 72px 16px 40px;
+    min-height: 100dvh;
+  }
+
+  .photo-section__title {
+    font-size: 32px;
+  }
+
+  .photo-section__subtitle {
+    font-size: 14px;
+  }
+
+  .photo-section__actions {
+    flex-direction: column;
+    width: 100%;
+    gap: 12px;
+  }
+
+  .photo-section__btn {
+    width: 100%;
+    font-size: 18px;
+    padding: 16px 20px;
+  }
+
+  .photo-section__btn--ghost {
+    font-size: 15px;
+    padding: 12px 16px;
   }
 
   .photo-section__btn--shutter {
-    width: 60px;
-    height: 60px;
-    font-size: 26px;
+    width: 72px;
+    height: 72px;
+    font-size: 30px;
+  }
+
+  .photo-section__camera-wrap {
+    width: 100%;
+  }
+
+  .photo-section__video-wrap {
+    aspect-ratio: 3/4;
+    border-radius: 8px;
+  }
+
+  .photo-section__preview-wrap {
+    width: 100%;
+  }
+
+  .photo-section__preview {
+    max-width: 100%;
+    border-radius: 8px;
+  }
+
+  .photo-section__preview-controls {
+    width: 100%;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .photo-section__preview-controls .photo-section__btn {
+    width: 100%;
+  }
+
+  .photo-section__queue {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    max-width: 100%;
+  }
+
+  .photo-section__gallery {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
   }
 }
