@@ -49,25 +49,40 @@ async function ydListPhotos(token, folder) {
   if (!res.ok) return []
   const data = await res.json()
   const items = data._embedded?.items || []
-  return items
-    .filter((i) => i.type === 'file' && /\.(jpg|jpeg|png|webp)$/i.test(i.name))
-    .map((i) => ({ name: i.name, publicUrl: i.public_url || null }))
+  const photos = items.filter((i) => i.type === 'file' && /\.(jpg|jpeg|png|webp)$/i.test(i.name))
+
+  // Публикуем файлы у которых ещё нет public_url
+  await Promise.all(
+    photos
+      .filter((i) => !i.public_url)
+      .map((i) =>
+        fetch(
+          `https://cloud-api.yandex.net/v1/disk/resources/publish?path=${encodeURIComponent(`disk:/${folder}/${i.name}`)}`,
+          { method: 'PUT', headers: { Authorization: `OAuth ${token}` } }
+        ).catch(() => {})
+      )
+  )
+
+  // Перечитываем если были непубличные
+  const needReload = photos.some((i) => !i.public_url)
+  let finalPhotos = photos
+  if (needReload) {
+    const res2 = await fetch(
+      `https://cloud-api.yandex.net/v1/disk/resources?path=disk:/${folder}&limit=100&sort=-created&fields=_embedded,_embedded.items.name,_embedded.items.type,_embedded.items.public_url,_embedded.items.created`,
+      { headers: { Authorization: `OAuth ${token}` } }
+    )
+    if (res2.ok) {
+      const data2 = await res2.json()
+      finalPhotos = (data2._embedded?.items || []).filter(
+        (i) => i.type === 'file' && /\.(jpg|jpeg|png|webp)$/i.test(i.name)
+      )
+    }
+  }
+
+  return finalPhotos.map((i) => ({ name: i.name, publicUrl: i.public_url || null }))
 }
 
-// Публичный API — не требует авторизации, нет CORS-блокировки
-async function ydGetPublicDownloadUrl(publicUrl) {
-  if (!publicUrl) return null
-  try {
-    const res = await fetch(
-      `https://cloud-api.yandex.net/v1/disk/public/resources/download?public_key=${encodeURIComponent(publicUrl)}`
-    )
-    if (!res.ok) return null
-    const { href } = await res.json()
-    return href || null
-  } catch {
-    return null
-  }
-}
+
 
 // ─── Компонент ──────────────────────────────────────────────────────
 export default function PhotoSection() {
@@ -95,8 +110,6 @@ export default function PhotoSection() {
 
   const [photos, setPhotos] = useState([])
   const [photosLoading, setPhotosLoading] = useState(false)
-  // Кэш blob-URL для превью: { [name]: objectUrl }
-  const previewCacheRef = useRef({})
 
   const [lightboxUrl, setLightboxUrl] = useState(null)
   const [lightboxLoading, setLightboxLoading] = useState(false)
@@ -107,18 +120,9 @@ export default function PhotoSection() {
     setPhotosLoading(true)
     try {
       const list = await ydListPhotos(YANDEX_TOKEN, YANDEX_FOLDER)
-      // Используем публичный API — работает без авторизации, без CORS
-      const withUrls = await Promise.all(
-        list.map(async (photo) => {
-          if (previewCacheRef.current[photo.name]) {
-            return { ...photo, downloadUrl: previewCacheRef.current[photo.name] }
-          }
-          const url = await ydGetPublicDownloadUrl(photo.publicUrl)
-          if (url) previewCacheRef.current[photo.name] = url
-          return { ...photo, downloadUrl: url }
-        })
-      )
-      setPhotos(withUrls)
+      // publicUrl (disk.yandex.ru/i/XXX) ставим прямо в <img src> —
+      // браузер обрабатывает редирект без CORS, fetch не нужен
+      setPhotos(list.map((photo) => ({ ...photo, downloadUrl: photo.publicUrl })))
     } catch (e) {
       console.error('Ошибка загрузки фото:', e)
     } finally {
@@ -302,23 +306,9 @@ export default function PhotoSection() {
   }
 
   // ── Лайтбокс ─────────────────────────────────────────────────────
-  const openLightbox = async (photo) => {
-    // Если уже есть download URL в кэше — используем его сразу
-    if (photo.downloadUrl) {
-      setLightboxUrl(photo.downloadUrl)
-      setLightboxLoading(false)
-      return
-    }
-    setLightboxUrl(null)
-    setLightboxLoading(true)
-    try {
-      const url = await ydGetPublicDownloadUrl(photo.publicUrl)
-      setLightboxUrl(url || null)
-    } catch {
-      setLightboxUrl(null)
-    } finally {
-      setLightboxLoading(false)
-    }
+  const openLightbox = (photo) => {
+    // publicUrl ставим напрямую в <img src> — браузер грузит без CORS
+    setLightboxUrl(photo.publicUrl || photo.downloadUrl || null)
   }
 
   useEffect(() => {
