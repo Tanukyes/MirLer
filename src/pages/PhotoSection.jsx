@@ -54,16 +54,19 @@ async function ydListPhotos(token, folder) {
     .map((i) => ({ name: i.name, publicUrl: i.public_url || null }))
 }
 
-// Получаем прямую ссылку на скачивание через API (поддерживает CORS)
-async function ydGetDownloadUrl(token, folder, filename) {
-  const path = `disk:/${folder}/${filename}`
-  const res = await fetch(
-    `https://cloud-api.yandex.net/v1/disk/resources/download?path=${encodeURIComponent(path)}`,
-    { headers: { Authorization: `OAuth ${token}` } }
-  )
-  if (!res.ok) return null
-  const { href } = await res.json()
-  return href
+// Публичный API — не требует авторизации, нет CORS-блокировки
+async function ydGetPublicDownloadUrl(publicUrl) {
+  if (!publicUrl) return null
+  try {
+    const res = await fetch(
+      `https://cloud-api.yandex.net/v1/disk/public/resources/download?public_key=${encodeURIComponent(publicUrl)}`
+    )
+    if (!res.ok) return null
+    const { href } = await res.json()
+    return href || null
+  } catch {
+    return null
+  }
 }
 
 // ─── Компонент ──────────────────────────────────────────────────────
@@ -104,14 +107,13 @@ export default function PhotoSection() {
     setPhotosLoading(true)
     try {
       const list = await ydListPhotos(YANDEX_TOKEN, YANDEX_FOLDER)
-      // Для каждого фото получаем прямую ссылку на скачивание (CORS-совместима)
+      // Используем публичный API — работает без авторизации, без CORS
       const withUrls = await Promise.all(
         list.map(async (photo) => {
-          // Используем кэш чтобы не делать лишние запросы при поллинге
           if (previewCacheRef.current[photo.name]) {
             return { ...photo, downloadUrl: previewCacheRef.current[photo.name] }
           }
-          const url = await ydGetDownloadUrl(YANDEX_TOKEN, YANDEX_FOLDER, photo.name)
+          const url = await ydGetPublicDownloadUrl(photo.publicUrl)
           if (url) previewCacheRef.current[photo.name] = url
           return { ...photo, downloadUrl: url }
         })
@@ -310,7 +312,7 @@ export default function PhotoSection() {
     setLightboxUrl(null)
     setLightboxLoading(true)
     try {
-      const url = await ydGetDownloadUrl(YANDEX_TOKEN, YANDEX_FOLDER, photo.name)
+      const url = await ydGetPublicDownloadUrl(photo.publicUrl)
       setLightboxUrl(url || null)
     } catch {
       setLightboxUrl(null)
