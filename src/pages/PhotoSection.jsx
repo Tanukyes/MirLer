@@ -7,6 +7,30 @@ const YANDEX_FOLDER = import.meta.env.VITE_YANDEX_DISK_FOLDER || 'wedding-photos
 const GALLERY_REFRESH_MS = 30_000
 const MAX_FILES = 10
 
+const LOCAL_STORAGE_KEY = 'mirler_local_photos'
+
+function saveLocalPhotos(list) {
+  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(list))
+}
+
+function loadLocalPhotos() {
+  try {
+    return JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '[]')
+  } catch {
+    return []
+  }
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
+
 // ─── Яндекс.Диск API ────────────────────────────────────────────────
 async function ydEnsureFolder(token, folder) {
   // 409 = папка уже существует, это нормально
@@ -78,7 +102,7 @@ async function ydGetPublicImageUrl(publicKey) {
 
     console.log('[YD] chosen size:', chosen)
 
-    return `https://disk.yandex.ru/i/${publicKey.split('/').pop()}`
+    return chosen?.url || data.preview || data.file || null
   } catch (e) {
     console.error('[YD] ydGetPublicImageUrl error:', e)
     return null
@@ -161,19 +185,9 @@ export default function PhotoSection() {
 
   // ── Витрина ──────────────────────────────────────────────────────
   const loadPhotos = useCallback(async () => {
-    if (!YANDEX_TOKEN) return
-    setPhotosLoading(true)
-    try {
-      const list = await ydListPhotos(YANDEX_TOKEN, YANDEX_FOLDER)
-      // imgUrl — прямая ссылка на картинку, CORS разрешён Яндексом
-      console.log('[YD] photos list resolved:', list)
-      setPhotos(list.map((photo) => ({ ...photo, downloadUrl: photo.imgUrl || photo.publicUrl })))
-    } catch (e) {
-      console.error('Ошибка загрузки фото:', e)
-    } finally {
-      setPhotosLoading(false)
-    }
-  }, [])
+  const localPhotos = loadLocalPhotos()
+  setPhotos(localPhotos)
+}, [])
 
   useEffect(() => {
     loadPhotos()
