@@ -78,7 +78,7 @@ async function ydGetPublicImageUrl(publicKey) {
 
     console.log('[YD] chosen size:', chosen)
 
-    return chosen?.url || data.preview || data.file || null
+    return `https://disk.yandex.ru/i/${publicKey.split('/').pop()}`
   } catch (e) {
     console.error('[YD] ydGetPublicImageUrl error:', e)
     return null
