@@ -7,66 +7,55 @@ const YANDEX_FOLDER = import.meta.env.VITE_YANDEX_DISK_FOLDER || 'wedding-photos
 const GALLERY_REFRESH_MS = 30_000
 const MAX_FILES = 10
 
-const CLOUDINARY_CLOUD_NAME = 'dvqen4u01'
-
-const CLOUDINARY_UPLOAD_PRESET = 'mirler_uploads'
-
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result)
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
-}
-
-
+const GOOGLE_SCRIPT_URL = import.meta.env.VITE_GOOGLE_SHEET_URL || ''
+const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dvqen4u01'
+const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'mirler_uploads'
 
 async function uploadToCloudinary(file) {
   const formData = new FormData()
-
   formData.append('file', file)
   formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET)
 
   const response = await fetch(
     `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
-    {
-      method: 'POST',
-      body: formData,
-    }
+    { method: 'POST', body: formData }
   )
-
-  if (!response.ok) {
-    throw new Error('Cloudinary upload failed')
-  }
-
+  if (!response.ok) throw new Error('Cloudinary upload failed')
   return await response.json()
 }
 
-async function fetchCloudinaryPhotos() {
+// Сохраняем URL фото в Google Sheets (второй лист "photos")
+async function savePhotoToSheet(imgUrl, publicId) {
+  if (!GOOGLE_SCRIPT_URL) return
   try {
-    const response = await fetch(
-      `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/list/${CLOUDINARY_UPLOAD_PRESET}.json?ts=${Date.now()}`,
-      {
-        cache: 'no-store',
-      }
-    )
+    await fetch(GOOGLE_SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'addPhoto', imgUrl, publicId }),
+    })
+  } catch (e) {
+    console.error('savePhotoToSheet error:', e)
+  }
+}
 
-    if (!response.ok) {
-      throw new Error('Failed to load Cloudinary gallery')
-    }
-
+// Читаем список фото из Google Sheets
+async function fetchPhotosFromSheet() {
+  if (!GOOGLE_SCRIPT_URL) return []
+  try {
+    const url = `${GOOGLE_SCRIPT_URL}?action=getPhotos&ts=${Date.now()}`
+    const response = await fetch(url, { cache: 'no-store' })
+    if (!response.ok) throw new Error('Sheet fetch failed')
     const data = await response.json()
-
-    return (data.resources || []).map((item) => ({
-      id: item.public_id,
-      name: item.public_id,
-      imgUrl: `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/v${item.version}/${item.public_id}.${item.format}?ts=${Date.now()}`,
-      downloadUrl: `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/v${item.version}/${item.public_id}.${item.format}?ts=${Date.now()}`,
-      created: item.created_at,
+    return (data.photos || []).map((item) => ({
+      id: item.publicId,
+      name: item.publicId,
+      imgUrl: item.imgUrl,
+      downloadUrl: item.imgUrl,
+      created: item.created,
     }))
   } catch (e) {
-    console.error(e)
+    console.error('fetchPhotosFromSheet error:', e)
     return []
   }
 }
@@ -236,7 +225,7 @@ export default function PhotoSection() {
   const loadPhotos = useCallback(async () => {
     setPhotosLoading(true)
     try {
-      const fetched = await fetchCloudinaryPhotos()
+      const fetched = await fetchPhotosFromSheet()
       setPhotos(fetched)
     } catch {
       setPhotos([])
@@ -418,8 +407,9 @@ export default function PhotoSection() {
         created: new Date().toISOString(),
       }
 
-      // 2. Обновляем общую галерею из Cloudinary
-      const updated = await fetchCloudinaryPhotos()
+      // 2. Сохраняем URL в Google Sheets и обновляем галерею
+      await savePhotoToSheet(uploaded.secure_url, uploaded.public_id)
+      const updated = await fetchPhotosFromSheet()
       setPhotos(updated)
 
       // 3. Бэкап на Яндекс.Диск (не блокирует, если упадёт)
@@ -451,39 +441,25 @@ export default function PhotoSection() {
     setUploadStatus(null)
 
     try {
-      const uploadedPhotos = []
-
       for (const item of queue) {
         const uploaded = await uploadToCloudinary(item.blob)
 
-        uploadedPhotos.push({
-          id: uploaded.public_id,
-          name: uploaded.public_id,
-          imgUrl: uploaded.secure_url,
-          downloadUrl: uploaded.secure_url,
-          created: new Date().toISOString(),
-        })
+        // Сохраняем URL в Google Sheets (доступно всем устройствам)
+        await savePhotoToSheet(uploaded.secure_url, uploaded.public_id)
 
         // backup в Яндекс.Диск
         if (YANDEX_TOKEN) {
           try {
             await ydEnsureFolder(YANDEX_TOKEN, YANDEX_FOLDER)
-
             const filename = `${uploaded.public_id}.jpg`
-
-            await ydUpload(
-              YANDEX_TOKEN,
-              YANDEX_FOLDER,
-              filename,
-              item.blob
-            )
+            await ydUpload(YANDEX_TOKEN, YANDEX_FOLDER, filename, item.blob)
           } catch (e) {
             console.error('Yandex backup failed:', e)
           }
         }
       }
 
-      const updated = await fetchCloudinaryPhotos()
+      const updated = await fetchPhotosFromSheet()
 
       setPhotos(updated)
 
