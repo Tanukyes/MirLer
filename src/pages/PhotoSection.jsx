@@ -232,46 +232,18 @@ export default function PhotoSection() {
   const [lightboxLoading, setLightboxLoading] = useState(false)
 
   // ── Витрина ──────────────────────────────────────────────────────
-  // Проверяет существование одного URL через HEAD-запрос.
-  // Cloudinary отдаёт 200 если фото есть, 404 если удалено.
-  const checkUrl = useCallback(async (url) => {
-    try {
-      const res = await fetch(url, { method: 'HEAD' })
-      return res.ok
-    } catch {
-      return false
-    }
-  }, [])
 
   const loadPhotos = useCallback(async () => {
+    setPhotosLoading(true)
     try {
-      const saved = JSON.parse(
-        // localStorage removed.getItem('mirler_cloudinary_photos') || '[]'
-      )
-      if (!saved.length) { setPhotos([]); return }
-
-      // Параллельно проверяем все URL — убираем удалённые из Cloudinary
-      const results = await Promise.all(
-        saved.map(async (photo) => {
-          const url = photo.imgUrl || photo.downloadUrl
-          if (!url) return null
-          const alive = await checkUrl(url)
-          return alive ? photo : null
-        })
-      )
-
-      const alive = results.filter(Boolean)
-
-      // Если что-то удалено — обновляем // localStorage removed
-      if (alive.length !== saved.length) {
-        // localStorage removed.setItem('mirler_cloudinary_photos', JSON.stringify(alive))
-      }
-
-      setPhotos(alive)
+      const fetched = await fetchCloudinaryPhotos()
+      setPhotos(fetched)
     } catch {
       setPhotos([])
+    } finally {
+      setPhotosLoading(false)
     }
-  }, [checkUrl])
+  }, [])
 
   useEffect(() => {
     loadPhotos()
@@ -511,14 +483,9 @@ export default function PhotoSection() {
         }
       }
 
-      const updated = [...uploadedPhotos, ...photos]
+      const updated = await fetchCloudinaryPhotos()
 
       setPhotos(updated)
-
-      // localStorage removed.setItem(
-        'mirler_cloudinary_photos',
-        JSON.stringify(updated)
-      )
 
       setUploadStatus('success')
 
@@ -759,12 +726,8 @@ export default function PhotoSection() {
                     className="photo-section__thumb"
                     loading="lazy"
                     onError={() => {
-                      // Фото удалено из Cloudinary — убираем из галереи полностью
-                      setPhotos((prev) => {
-                        const updated = prev.filter((p) => p.name !== photo.name)
-                        // localStorage removed.setItem('mirler_cloudinary_photos', JSON.stringify(updated))
-                        return updated
-                      })
+                      // Фото недоступно — убираем из галереи
+                      setPhotos((prev) => prev.filter((p) => p.name !== photo.name))
                     }}
                   />
                 ) : null}
