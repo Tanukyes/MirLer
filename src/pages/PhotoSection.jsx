@@ -58,9 +58,15 @@ async function uploadToCloudinary(file) {
 }
 
 // ─── Яндекс.Диск API ────────────────────────────────────────────────
+// cloud-api.yandex.net блокирует CORS с GitHub Pages,
+// поэтому API-запросы идут через corsproxy.io.
+// Загрузка самого файла (PUT на href) — это S3-URL, CORS там разрешён.
+const YD_API = (path) =>
+  `https://corsproxy.io/?url=${encodeURIComponent('https://cloud-api.yandex.net' + path)}`
+
 async function ydEnsureFolder(token, folder) {
   // 409 = папка уже существует, это нормально
-  await fetch(`https://cloud-api.yandex.net/v1/disk/resources?path=disk:/${folder}`, {
+  await fetch(YD_API(`/v1/disk/resources?path=disk:/${folder}`), {
     method: 'PUT',
     headers: { Authorization: `OAuth ${token}` },
   }).catch(() => {})
@@ -68,11 +74,12 @@ async function ydEnsureFolder(token, folder) {
 
 async function ydUpload(token, folder, filename, blob) {
   const urlRes = await fetch(
-    `https://cloud-api.yandex.net/v1/disk/resources/upload?path=disk:/${folder}/${filename}&overwrite=true`,
+    YD_API(`/v1/disk/resources/upload?path=disk:/${folder}/${filename}&overwrite=true`),
     { headers: { Authorization: `OAuth ${token}` } }
   )
   if (!urlRes.ok) throw new Error(`Ошибка получения URL: ${urlRes.status}`)
   const { href } = await urlRes.json()
+  // Прямой PUT на S3-href — CORS разрешён, прокси не нужен
   const uploadRes = await fetch(href, { method: 'PUT', body: blob })
   if (!uploadRes.ok) throw new Error(`Ошибка загрузки: ${uploadRes.status}`)
 }
@@ -375,19 +382,46 @@ export default function PhotoSection() {
     fileInputRef.current?.click()
   }
 
-  // ── Загрузка на Яндекс.Диск ──────────────────────────────────────
-  // Загрузка одного фото с камеры
+  // ── Загрузка фото с камеры ────────────────────────────────────────
+  // Сначала Cloudinary (основное хранилище для показа),
+  // потом бэкап на Яндекс.Диск — так же как uploadQueue для галереи
   const uploadCameraPhoto = async () => {
-    if (!capturedBlob || !YANDEX_TOKEN) { setUploadStatus('error'); return }
+    if (!capturedBlob) { setUploadStatus('error'); return }
     setUploading(true)
     setUploadStatus(null)
     try {
-      await ydEnsureFolder(YANDEX_TOKEN, YANDEX_FOLDER)
-      const filename = `photo_${Date.now()}.jpg`
-      await ydUpload(YANDEX_TOKEN, YANDEX_FOLDER, filename, capturedBlob)
-      await ydPublishAndGetUrl(YANDEX_TOKEN, YANDEX_FOLDER, filename)
+      // 1. Загружаем в Cloudinary
+      const uploaded = await uploadToCloudinary(capturedBlob)
+
+      const newPhoto = {
+        id: uploaded.public_id,
+        name: uploaded.public_id,
+        imgUrl: uploaded.secure_url,
+        downloadUrl: uploaded.secure_url,
+        created: new Date().toISOString(),
+      }
+
+      // 2. Сохраняем в localStorage (галерея обновится)
+      const existing = JSON.parse(
+        localStorage.getItem('mirler_cloudinary_photos') || '[]'
+      )
+      const updated = [newPhoto, ...existing]
+      localStorage.setItem('mirler_cloudinary_photos', JSON.stringify(updated))
+      setPhotos(updated)
+
+      // 3. Бэкап на Яндекс.Диск (не блокирует, если упадёт)
+      if (YANDEX_TOKEN) {
+        try {
+          await ydEnsureFolder(YANDEX_TOKEN, YANDEX_FOLDER)
+          const filename = `${uploaded.public_id}.jpg`
+          await ydUpload(YANDEX_TOKEN, YANDEX_FOLDER, filename, capturedBlob)
+        } catch (e) {
+          console.error('Yandex backup failed:', e)
+        }
+      }
+
       setUploadStatus('success')
-      setTimeout(() => { closeAll(); loadPhotos() }, 1500)
+      setTimeout(() => { closeAll() }, 1500)
     } catch (e) {
       console.error(e)
       setUploadStatus('error')
@@ -560,7 +594,7 @@ export default function PhotoSection() {
                     <button className="photo-section__btn photo-section__btn--ghost" onClick={retakeCamera} disabled={uploading}>
                       Переснять
                     </button>
-                    <button className="photo-section__btn" onClick={uploadCameraPhoto} disabled={uploading || !YANDEX_TOKEN}>
+                    <button className="photo-section__btn" onClick={uploadCameraPhoto} disabled={uploading}>
                       {uploading ? 'Загружаем…' : 'Сохранить'}
                     </button>
                     <button className="photo-section__btn photo-section__btn--ghost" onClick={closeAll} disabled={uploading}>
@@ -621,7 +655,7 @@ export default function PhotoSection() {
                     <button
                       className="photo-section__btn"
                       onClick={uploadQueue}
-                      disabled={uploading || !YANDEX_TOKEN || queue.length === 0}
+                      disabled={uploading || queue.length === 0}
                     >
                       {uploading ? 'Загружаем…' : `Сохранить (${queue.length})`}
                     </button>
@@ -639,11 +673,6 @@ export default function PhotoSection() {
                 </>
               )}
 
-              {!YANDEX_TOKEN && (
-                <p className="photo-section__status photo-section__status--error">
-                  Укажите VITE_YANDEX_DISK_TOKEN в файле .env
-                </p>
-              )}
               {uploadStatus === 'success' && (
                 <p className="photo-section__status photo-section__status--success">
                   ✓ Фото добавлены в витрину!
@@ -678,9 +707,13 @@ export default function PhotoSection() {
                     alt={photo.name}
                     className="photo-section__thumb"
                     loading="lazy"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none'
-                      e.currentTarget.nextSibling.style.display = 'flex'
+                    onError={() => {
+                      // Фото удалено из Cloudinary — убираем из галереи полностью
+                      setPhotos((prev) => {
+                        const updated = prev.filter((p) => p.name !== photo.name)
+                        localStorage.setItem('mirler_cloudinary_photos', JSON.stringify(updated))
+                        return updated
+                      })
                     }}
                   />
                 ) : null}
