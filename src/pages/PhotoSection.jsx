@@ -24,15 +24,12 @@ async function uploadToCloudinary(file) {
   return await response.json()
 }
 
-// Сохраняем URL фото в Google Sheets (второй лист "photos")
+// Сохраняем URL фото в Google Sheets через GET (POST редиректится Apps Script)
 async function savePhotoToSheet(imgUrl, publicId) {
   if (!GOOGLE_SCRIPT_URL) return
   try {
-    await fetch(GOOGLE_SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'addPhoto', imgUrl, publicId }),
-    })
+    const url = `${GOOGLE_SCRIPT_URL}?action=addPhoto&imgUrl=${encodeURIComponent(imgUrl)}&publicId=${encodeURIComponent(publicId)}`
+    await fetch(url, { cache: 'no-store' })
   } catch (e) {
     console.error('savePhotoToSheet error:', e)
   }
