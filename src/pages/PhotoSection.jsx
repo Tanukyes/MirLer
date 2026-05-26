@@ -217,16 +217,51 @@ export default function PhotoSection() {
   const [lightboxLoading, setLightboxLoading] = useState(false)
 
   // ── Витрина ──────────────────────────────────────────────────────
+  // Проверяет существование одного URL через HEAD-запрос.
+  // Cloudinary отдаёт 200 если фото есть, 404 если удалено.
+  const checkUrl = useCallback(async (url) => {
+    try {
+      const cacheBustedUrl = `${url}${url.includes('?') ? '&' : '?'}v=${Date.now()}`
+
+      const res = await fetch(cacheBustedUrl, {
+        method: 'HEAD',
+        cache: 'no-store',
+      })
+      return res.ok
+    } catch {
+      return false
+    }
+  }, [])
+
   const loadPhotos = useCallback(async () => {
     try {
       const saved = JSON.parse(
         localStorage.getItem('mirler_cloudinary_photos') || '[]'
       )
-      setPhotos(saved)
+      if (!saved.length) { setPhotos([]); return }
+
+      // Параллельно проверяем все URL — убираем удалённые из Cloudinary
+      const results = await Promise.all(
+        saved.map(async (photo) => {
+          const url = photo.imgUrl || photo.downloadUrl
+          if (!url) return null
+          const alive = await checkUrl(url)
+          return alive ? photo : null
+        })
+      )
+
+      const alive = results.filter(Boolean)
+
+      // Если что-то удалено — обновляем localStorage
+      if (alive.length !== saved.length) {
+        localStorage.setItem('mirler_cloudinary_photos', JSON.stringify(alive))
+      }
+
+      setPhotos(alive)
     } catch {
       setPhotos([])
     }
-  }, [])
+  }, [checkUrl])
 
   useEffect(() => {
     loadPhotos()
@@ -515,9 +550,9 @@ export default function PhotoSection() {
         <div className="photo-section__content">
           <h2 className="photo-section__title">Наши моменты</h2>
           <p className="photo-section__subtitle">
-            Сделайте фото и поделитесь воспоминаниями этого дня.
+            Сделайте фото и поделитесь воспоминаниями этого дня
             <br />
-            Все фото можно посмотреть{' '}
+            все фото можно посмотреть{' '}
             <a
               href="https://disk.yandex.ru/d/ztnSdeg-_8XCjw"
               target="_blank"
@@ -713,7 +748,7 @@ export default function PhotoSection() {
               >
                 {photo.imgUrl ? (
                   <img
-                    src={photo.imgUrl}
+                    src={`${photo.imgUrl}${photo.imgUrl.includes('?') ? '&' : '?'}v=${photo.updatedAt || Date.now()}`}
                     alt={photo.name}
                     className="photo-section__thumb"
                     loading="lazy"
