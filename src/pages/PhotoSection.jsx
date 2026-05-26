@@ -10,6 +10,7 @@ const MAX_FILES = 10
 const CLOUDINARY_CLOUD_NAME = 'dvqen4u01'
 
 const CLOUDINARY_UPLOAD_PRESET = 'mirler_uploads'
+const CLOUDINARY_TAG = 'mirler_gallery'
 
 const LOCAL_STORAGE_KEY = 'mirler_local_photos'
 
@@ -41,6 +42,7 @@ async function uploadToCloudinary(file) {
 
   formData.append('file', file)
   formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET)
+  formData.append('tags', CLOUDINARY_TAG)
 
   const response = await fetch(
     `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
@@ -221,12 +223,7 @@ export default function PhotoSection() {
   // Cloudinary отдаёт 200 если фото есть, 404 если удалено.
   const checkUrl = useCallback(async (url) => {
     try {
-      const cacheBustedUrl = `${url}${url.includes('?') ? '&' : '?'}v=${Date.now()}`
-
-      const res = await fetch(cacheBustedUrl, {
-        method: 'HEAD',
-        cache: 'no-store',
-      })
+      const res = await fetch(url, { method: 'HEAD' })
       return res.ok
     } catch {
       return false
@@ -235,14 +232,34 @@ export default function PhotoSection() {
 
   const loadPhotos = useCallback(async () => {
     try {
-      const saved = JSON.parse(
-        localStorage.getItem('mirler_cloudinary_photos') || '[]'
-      )
-      if (!saved.length) { setPhotos([]); return }
+      const timestamp = Date.now()
 
-      // Параллельно проверяем все URL — убираем удалённые из Cloudinary
+      // Загружаем общий список фото из Cloudinary.
+      // Теперь все устройства видят одинаковую галерею.
+      const response = await fetch(
+        `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/list/${CLOUDINARY_TAG}.json?v=${timestamp}`,
+        {
+          cache: 'no-store',
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error('Failed to load Cloudinary gallery')
+      }
+
+      const data = await response.json()
+
+      const cloudPhotos = (data.resources || []).map((photo) => ({
+        id: photo.public_id,
+        name: photo.public_id,
+        imgUrl: `${photo.secure_url}?v=${photo.version || timestamp}`,
+        downloadUrl: `${photo.secure_url}?v=${photo.version || timestamp}`,
+        created: photo.created_at || new Date().toISOString(),
+      }))
+
+      // Проверяем что фото реально существуют
       const results = await Promise.all(
-        saved.map(async (photo) => {
+        cloudPhotos.map(async (photo) => {
           const url = photo.imgUrl || photo.downloadUrl
           if (!url) return null
           const alive = await checkUrl(url)
@@ -252,14 +269,24 @@ export default function PhotoSection() {
 
       const alive = results.filter(Boolean)
 
-      // Если что-то удалено — обновляем localStorage
-      if (alive.length !== saved.length) {
-        localStorage.setItem('mirler_cloudinary_photos', JSON.stringify(alive))
-      }
+      localStorage.setItem(
+        'mirler_cloudinary_photos',
+        JSON.stringify(alive)
+      )
 
       setPhotos(alive)
-    } catch {
-      setPhotos([])
+    } catch (e) {
+      console.error(e)
+
+      // fallback если Cloudinary list временно недоступен
+      try {
+        const saved = JSON.parse(
+          localStorage.getItem('mirler_cloudinary_photos') || '[]'
+        )
+        setPhotos(saved)
+      } catch {
+        setPhotos([])
+      }
     }
   }, [checkUrl])
 
@@ -748,7 +775,7 @@ export default function PhotoSection() {
               >
                 {photo.imgUrl ? (
                   <img
-                    src={`${photo.imgUrl}${photo.imgUrl.includes('?') ? '&' : '?'}v=${photo.updatedAt || Date.now()}`}
+                    src={photo.imgUrl}
                     alt={photo.name}
                     className="photo-section__thumb"
                     loading="lazy"
