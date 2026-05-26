@@ -43,29 +43,30 @@ async function uploadToCloudinary(file) {
   return await response.json()
 }
 
-
-async function loadCloudinaryPhotos() {
+async function fetchCloudinaryPhotos() {
   try {
     const response = await fetch(
-      `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/list/${CLOUDINARY_UPLOAD_PRESET}.json?t=${Date.now()}`,
+      `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/list/${CLOUDINARY_UPLOAD_PRESET}.json?ts=${Date.now()}`,
       {
         cache: 'no-store',
       }
     )
 
     if (!response.ok) {
-      throw new Error('Cloudinary list failed')
+      throw new Error('Failed to load Cloudinary gallery')
     }
 
     const data = await response.json()
 
     return (data.resources || []).map((item) => ({
       id: item.public_id,
-      url: `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/v${item.version}/${item.public_id}.${item.format}?t=${Date.now()}`,
-      createdAt: item.created_at,
+      name: item.public_id,
+      imgUrl: `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/v${item.version}/${item.public_id}.${item.format}?ts=${Date.now()}`,
+      downloadUrl: `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/v${item.version}/${item.public_id}.${item.format}?ts=${Date.now()}`,
+      created: item.created_at,
     }))
-  } catch (error) {
-    console.error(error)
+  } catch (e) {
+    console.error(e)
     return []
   }
 }
@@ -235,12 +236,7 @@ export default function PhotoSection() {
   // Cloudinary отдаёт 200 если фото есть, 404 если удалено.
   const checkUrl = useCallback(async (url) => {
     try {
-      const cacheBustedUrl = `${url}${url.includes('?') ? '&' : '?'}v=${Date.now()}`
-
-      const res = await fetch(cacheBustedUrl, {
-        method: 'HEAD',
-        cache: 'no-store',
-      })
+      const res = await fetch(url, { method: 'HEAD' })
       return res.ok
     } catch {
       return false
@@ -250,7 +246,7 @@ export default function PhotoSection() {
   const loadPhotos = useCallback(async () => {
     try {
       const saved = JSON.parse(
-        localStorage.getItem('mirler_cloudinary_photos') || '[]'
+        // localStorage removed.getItem('mirler_cloudinary_photos') || '[]'
       )
       if (!saved.length) { setPhotos([]); return }
 
@@ -266,9 +262,9 @@ export default function PhotoSection() {
 
       const alive = results.filter(Boolean)
 
-      // Если что-то удалено — обновляем localStorage
+      // Если что-то удалено — обновляем // localStorage removed
       if (alive.length !== saved.length) {
-        localStorage.setItem('mirler_cloudinary_photos', JSON.stringify(alive))
+        // localStorage removed.setItem('mirler_cloudinary_photos', JSON.stringify(alive))
       }
 
       setPhotos(alive)
@@ -450,12 +446,8 @@ export default function PhotoSection() {
         created: new Date().toISOString(),
       }
 
-      // 2. Сохраняем в localStorage (галерея обновится)
-      const existing = JSON.parse(
-        localStorage.getItem('mirler_cloudinary_photos') || '[]'
-      )
-      const updated = [newPhoto, ...existing]
-      localStorage.setItem('mirler_cloudinary_photos', JSON.stringify(updated))
+      // 2. Обновляем общую галерею из Cloudinary
+      const updated = await fetchCloudinaryPhotos()
       setPhotos(updated)
 
       // 3. Бэкап на Яндекс.Диск (не блокирует, если упадёт)
@@ -523,7 +515,7 @@ export default function PhotoSection() {
 
       setPhotos(updated)
 
-      localStorage.setItem(
+      // localStorage removed.setItem(
         'mirler_cloudinary_photos',
         JSON.stringify(updated)
       )
@@ -762,7 +754,7 @@ export default function PhotoSection() {
               >
                 {photo.imgUrl ? (
                   <img
-                    src={`${photo.imgUrl}${photo.imgUrl.includes('?') ? '&' : '?'}v=${photo.updatedAt || Date.now()}`}
+                    src={photo.imgUrl}
                     alt={photo.name}
                     className="photo-section__thumb"
                     loading="lazy"
@@ -770,7 +762,7 @@ export default function PhotoSection() {
                       // Фото удалено из Cloudinary — убираем из галереи полностью
                       setPhotos((prev) => {
                         const updated = prev.filter((p) => p.name !== photo.name)
-                        localStorage.setItem('mirler_cloudinary_photos', JSON.stringify(updated))
+                        // localStorage removed.setItem('mirler_cloudinary_photos', JSON.stringify(updated))
                         return updated
                       })
                     }}
