@@ -515,7 +515,17 @@ export default function PhotoSection() {
         <div className="photo-section__content">
           <h2 className="photo-section__title">Наши моменты</h2>
           <p className="photo-section__subtitle">
-            Сделайте фото и поделитесь воспоминаниями этого дня
+            Сделайте фото и поделитесь воспоминаниями этого дня.
+            <br />
+            Все фото можно посмотреть{' '}
+            <a
+              href="https://disk.yandex.ru/d/ztnSdeg-_8XCjw"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="photo-section__yd-link"
+            >
+              здесь
+            </a>
           </p>
 
           {/* ── Кнопки выбора режима ── */}

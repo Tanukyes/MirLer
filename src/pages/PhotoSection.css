@@ -53,6 +53,17 @@
   text-align: center;
 }
 
+.photo-section__yd-link {
+  color: #4a7fc1;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 0.2s;
+}
+
+.photo-section__yd-link:hover {
+  color: #2a5fa0;
+}
+
 /* ── Кнопки ─────────────────────────────────────────────────────── */
 .photo-section__actions {
   display: flex;
