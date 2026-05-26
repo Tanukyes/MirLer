@@ -10,21 +10,6 @@ const MAX_FILES = 10
 const CLOUDINARY_CLOUD_NAME = 'dvqen4u01'
 
 const CLOUDINARY_UPLOAD_PRESET = 'mirler_uploads'
-const CLOUDINARY_TAG = 'mirler_gallery'
-
-const LOCAL_STORAGE_KEY = 'mirler_local_photos'
-
-function saveLocalPhotos(list) {
-  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(list))
-}
-
-function loadLocalPhotos() {
-  try {
-    return JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '[]')
-  } catch {
-    return []
-  }
-}
 
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
@@ -42,7 +27,6 @@ async function uploadToCloudinary(file) {
 
   formData.append('file', file)
   formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET)
-  formData.append('tags', CLOUDINARY_TAG)
 
   const response = await fetch(
     `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
@@ -58,6 +42,34 @@ async function uploadToCloudinary(file) {
 
   return await response.json()
 }
+
+
+async function loadCloudinaryPhotos() {
+  try {
+    const response = await fetch(
+      `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/list/${CLOUDINARY_UPLOAD_PRESET}.json?t=${Date.now()}`,
+      {
+        cache: 'no-store',
+      }
+    )
+
+    if (!response.ok) {
+      throw new Error('Cloudinary list failed')
+    }
+
+    const data = await response.json()
+
+    return (data.resources || []).map((item) => ({
+      id: item.public_id,
+      url: `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/v${item.version}/${item.public_id}.${item.format}?t=${Date.now()}`,
+      createdAt: item.created_at,
+    }))
+  } catch (error) {
+    console.error(error)
+    return []
+  }
+}
+
 
 // ─── Яндекс.Диск API ────────────────────────────────────────────────
 // cloud-api.yandex.net блокирует CORS с GitHub Pages,
@@ -223,7 +235,12 @@ export default function PhotoSection() {
   // Cloudinary отдаёт 200 если фото есть, 404 если удалено.
   const checkUrl = useCallback(async (url) => {
     try {
-      const res = await fetch(url, { method: 'HEAD' })
+      const cacheBustedUrl = `${url}${url.includes('?') ? '&' : '?'}v=${Date.now()}`
+
+      const res = await fetch(cacheBustedUrl, {
+        method: 'HEAD',
+        cache: 'no-store',
+      })
       return res.ok
     } catch {
       return false
@@ -232,34 +249,14 @@ export default function PhotoSection() {
 
   const loadPhotos = useCallback(async () => {
     try {
-      const timestamp = Date.now()
-
-      // Загружаем общий список фото из Cloudinary.
-      // Теперь все устройства видят одинаковую галерею.
-      const response = await fetch(
-        `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/list/${CLOUDINARY_TAG}.json?v=${timestamp}`,
-        {
-          cache: 'no-store',
-        }
+      const saved = JSON.parse(
+        localStorage.getItem('mirler_cloudinary_photos') || '[]'
       )
+      if (!saved.length) { setPhotos([]); return }
 
-      if (!response.ok) {
-        throw new Error('Failed to load Cloudinary gallery')
-      }
-
-      const data = await response.json()
-
-      const cloudPhotos = (data.resources || []).map((photo) => ({
-        id: photo.public_id,
-        name: photo.public_id,
-        imgUrl: `${photo.secure_url}?v=${photo.version || timestamp}`,
-        downloadUrl: `${photo.secure_url}?v=${photo.version || timestamp}`,
-        created: photo.created_at || new Date().toISOString(),
-      }))
-
-      // Проверяем что фото реально существуют
+      // Параллельно проверяем все URL — убираем удалённые из Cloudinary
       const results = await Promise.all(
-        cloudPhotos.map(async (photo) => {
+        saved.map(async (photo) => {
           const url = photo.imgUrl || photo.downloadUrl
           if (!url) return null
           const alive = await checkUrl(url)
@@ -269,24 +266,14 @@ export default function PhotoSection() {
 
       const alive = results.filter(Boolean)
 
-      localStorage.setItem(
-        'mirler_cloudinary_photos',
-        JSON.stringify(alive)
-      )
+      // Если что-то удалено — обновляем localStorage
+      if (alive.length !== saved.length) {
+        localStorage.setItem('mirler_cloudinary_photos', JSON.stringify(alive))
+      }
 
       setPhotos(alive)
-    } catch (e) {
-      console.error(e)
-
-      // fallback если Cloudinary list временно недоступен
-      try {
-        const saved = JSON.parse(
-          localStorage.getItem('mirler_cloudinary_photos') || '[]'
-        )
-        setPhotos(saved)
-      } catch {
-        setPhotos([])
-      }
+    } catch {
+      setPhotos([])
     }
   }, [checkUrl])
 
@@ -775,7 +762,7 @@ export default function PhotoSection() {
               >
                 {photo.imgUrl ? (
                   <img
-                    src={photo.imgUrl}
+                    src={`${photo.imgUrl}${photo.imgUrl.includes('?') ? '&' : '?'}v=${photo.updatedAt || Date.now()}`}
                     alt={photo.name}
                     className="photo-section__thumb"
                     loading="lazy"
