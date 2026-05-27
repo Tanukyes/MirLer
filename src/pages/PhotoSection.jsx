@@ -11,20 +11,56 @@ const GOOGLE_SCRIPT_URL = import.meta.env.VITE_GOOGLE_SHEET_URL || ''
 const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dvqen4u01'
 const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'mirler_uploads'
 
+// ─── Кэш галереи (переживает перемонтирование компонента) ────────
+let _photosCache = null
+let _photosCacheTs = 0
+const CACHE_TTL = 25_000 // 25 сек — чуть меньше интервала обновления
+
+// ─── Сжатие изображения перед загрузкой ──────────────────────────
+// Уменьшаем до 1920px по длинной стороне, качество JPEG 0.82
+// Даёт ~3–5× меньший размер файла → загрузка в 3–5 раз быстрее
+function compressImage(file, maxSide = 1920, quality = 0.82) {
+  return new Promise((resolve) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      let { width, height } = img
+      if (width > maxSide || height > maxSide) {
+        if (width >= height) { height = Math.round(height * maxSide / width); width = maxSide }
+        else { width = Math.round(width * maxSide / height); height = maxSide }
+      }
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height)
+      canvas.toBlob(
+        (blob) => resolve(blob || file),
+        'image/jpeg',
+        quality
+      )
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file) }
+    img.src = url
+  })
+}
+
+// ─── Cloudinary ───────────────────────────────────────────────────
 async function uploadToCloudinary(file) {
+  const compressed = await compressImage(file)
   const formData = new FormData()
-  formData.append('file', file)
+  formData.append('file', compressed)
   formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET)
 
   const response = await fetch(
     `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
     { method: 'POST', body: formData }
   )
-  if (!response.ok) throw new Error('Cloudinary upload failed')
+  if (!response.ok) throw new Error(`Cloudinary upload failed: ${response.status}`)
   return await response.json()
 }
 
-// Сохраняем URL фото в Google Sheets через GET (POST редиректится Apps Script)
+// ─── Google Sheets ────────────────────────────────────────────────
 async function savePhotoToSheet(imgUrl, publicId) {
   if (!GOOGLE_SCRIPT_URL) return
   try {
@@ -35,7 +71,6 @@ async function savePhotoToSheet(imgUrl, publicId) {
   }
 }
 
-// Читаем список фото из Google Sheets
 async function fetchPhotosFromSheet() {
   if (!GOOGLE_SCRIPT_URL) return []
   try {
@@ -56,16 +91,23 @@ async function fetchPhotosFromSheet() {
   }
 }
 
+// Загрузка с кэшированием — быстрый первый показ, потом тихое обновление
+async function fetchPhotosWithCache(forceRefresh = false) {
+  const now = Date.now()
+  if (!forceRefresh && _photosCache && now - _photosCacheTs < CACHE_TTL) {
+    return _photosCache
+  }
+  const photos = await fetchPhotosFromSheet()
+  _photosCache = photos
+  _photosCacheTs = now
+  return photos
+}
 
-// ─── Яндекс.Диск API ────────────────────────────────────────────────
-// cloud-api.yandex.net блокирует CORS с GitHub Pages,
-// поэтому API-запросы идут через corsproxy.io.
-// Загрузка самого файла (PUT на href) — это S3-URL, CORS там разрешён.
+// ─── Яндекс.Диск (только бэкап) ──────────────────────────────────
 const YD_API = (path) =>
   `https://corsproxy.io/?url=${encodeURIComponent('https://cloud-api.yandex.net' + path)}`
 
 async function ydEnsureFolder(token, folder) {
-  // 409 = папка уже существует, это нормально
   await fetch(YD_API(`/v1/disk/resources?path=disk:/${folder}`), {
     method: 'PUT',
     headers: { Authorization: `OAuth ${token}` },
@@ -79,149 +121,56 @@ async function ydUpload(token, folder, filename, blob) {
   )
   if (!urlRes.ok) throw new Error(`Ошибка получения URL: ${urlRes.status}`)
   const { href } = await urlRes.json()
-  // Прямой PUT на S3-href — CORS разрешён, прокси не нужен
   const uploadRes = await fetch(href, { method: 'PUT', body: blob })
   if (!uploadRes.ok) throw new Error(`Ошибка загрузки: ${uploadRes.status}`)
 }
 
-async function ydPublishAndGetUrl(token, folder, filename) {
-  const path = `disk:/${folder}/${filename}`
-  await fetch(
-    `https://cloud-api.yandex.net/v1/disk/resources/publish?path=${encodeURIComponent(path)}`,
-    { method: 'PUT', headers: { Authorization: `OAuth ${token}` } }
-  )
-  const res = await fetch(
-    `https://cloud-api.yandex.net/v1/disk/resources?path=${encodeURIComponent(path)}&fields=public_url`,
-    { headers: { Authorization: `OAuth ${token}` } }
-  )
-  if (!res.ok) return null
-  const data = await res.json()
-  return data.public_url || null
-}
-
-async function ydPublishFile(token, path) {
-  await fetch(
-    `https://cloud-api.yandex.net/v1/disk/resources/publish?path=${encodeURIComponent(path)}`,
-    { method: 'PUT', headers: { Authorization: `OAuth ${token}` } }
-  ).catch(() => {})
-}
-
-// Получаем прямую ссылку на картинку через публичный API (без авторизации, CORS разрешён)
-// /public/resources возвращает sizes[] с реальными URL картинок
-async function ydGetPublicImageUrl(publicKey) {
-  try {
-    const res = await fetch(
-      `https://cloud-api.yandex.net/v1/disk/public/resources?public_key=${encodeURIComponent(publicKey)}&fields=sizes,file,preview,media_type,mime_type`,
-    )
-    console.log('[YD] public/resources status:', res.status, 'for key:', publicKey)
-    if (!res.ok) {
-      console.error('[YD] public/resources failed:', res.status, res.statusText)
-      return null
+// Бэкап на Яндекс без блокировки основного потока
+function ydBackupSilent(token, folder, publicId, blob) {
+  if (!token) return
+  ;(async () => {
+    try {
+      await ydEnsureFolder(token, folder)
+      await ydUpload(token, folder, `${publicId}.jpg`, blob)
+    } catch (e) {
+      console.warn('Yandex backup failed (non-critical):', e.message)
     }
-    const data = await res.json()
-    console.log('[YD] public/resources response:', JSON.stringify(data, null, 2))
-    const sizes = data.sizes || []
-    console.log('[YD] sizes array:', sizes)
-    console.log('[YD] file field:', data.file)
-    console.log('[YD] preview field:', data.preview)
-    // GitHub Pages + Yandex Disk:
-    // ORIGINAL часто даёт 403 Forbidden из-за hotlink/CORS ограничений.
-    // Используем preview/DEFAULT/L вместо ORIGINAL.
-    const chosen =
-      sizes.find((s) => s.name === 'DEFAULT') ||
-      sizes.find((s) => s.name === 'L') ||
-      sizes.find((s) => s.name === 'M') ||
-      sizes[sizes.length - 1]
-
-    console.log('[YD] chosen size:', chosen)
-
-    return chosen?.url || data.preview || data.file || null
-  } catch (e) {
-    console.error('[YD] ydGetPublicImageUrl error:', e)
-    return null
-  }
+  })()
 }
 
-async function ydListPhotos(token, folder) {
-  const listUrl = `https://cloud-api.yandex.net/v1/disk/resources?path=disk:/${folder}&limit=100&sort=-created&fields=_embedded,_embedded.items.name,_embedded.items.type,_embedded.items.public_url,_embedded.items.created`
-
-  const res = await fetch(listUrl, { headers: { Authorization: `OAuth ${token}` } })
-  if (!res.ok) return []
-  const data = await res.json()
-  const items = data._embedded?.items || []
-  const photos = items.filter((i) => i.type === 'file' && /\.(jpg|jpeg|png|webp)$/i.test(i.name))
-
-  // Публикуем файлы без public_url
-  const unpublished = photos.filter((i) => !i.public_url)
-  if (unpublished.length > 0) {
-    await Promise.all(
-      unpublished.map((i) => ydPublishFile(token, `disk:/${folder}/${i.name}`))
-    )
-    const res2 = await fetch(listUrl, { headers: { Authorization: `OAuth ${token}` } })
-    if (res2.ok) {
-      const data2 = await res2.json()
-      const refreshed = (data2._embedded?.items || []).filter(
-        (i) => i.type === 'file' && /\.(jpg|jpeg|png|webp)$/i.test(i.name)
-      )
-      return await resolveImageUrls(refreshed)
-    }
-  }
-
-  return await resolveImageUrls(photos)
-}
-
-// Для каждого файла с public_url получаем прямую ссылку на картинку
-async function resolveImageUrls(photos) {
-  return Promise.all(
-    photos
-      .filter((i) => i.public_url)
-      .map(async (i) => {
-        console.log('[YD] resolving image for:', i.name, 'public_url:', i.public_url)
-        const imgUrl = await ydGetPublicImageUrl(i.public_url)
-        console.log('[YD] resolved imgUrl for', i.name, ':', imgUrl)
-        return { name: i.name, publicUrl: i.public_url, imgUrl }
-      })
-  )
-}
-
-
-
-// ─── Компонент ──────────────────────────────────────────────────────
+// ─── Компонент ───────────────────────────────────────────────────
 export default function PhotoSection() {
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
   const streamRef = useRef(null)
   const fileInputRef = useRef(null)
 
-  // Режим: 'gallery' | 'camera' | 'preview'
   const [mode, setMode] = useState('gallery')
   const [cameraReady, setCameraReady] = useState(false)
   const [facingMode, setFacingMode] = useState('environment')
 
-  // Для режима камеры — одно фото
   const [capturedBlob, setCapturedBlob] = useState(null)
   const [capturedUrl, setCapturedUrl] = useState(null)
 
-  // Для режима галереи — очередь до 10 фото
   // item: { id, blob, url, status: null|'uploading'|'done'|'error' }
   const [queue, setQueue] = useState([])
   const [fromGallery, setFromGallery] = useState(false)
 
   const [uploading, setUploading] = useState(false)
-  const [uploadStatus, setUploadStatus] = useState(null)
+  const [uploadStatus, setUploadStatus] = useState(null) // 'success'|'error'|null
+  const [uploadError, setUploadError] = useState('')    // человеческий текст ошибки
 
   const [photos, setPhotos] = useState([])
   const [photosLoading, setPhotosLoading] = useState(false)
 
   const [lightboxUrl, setLightboxUrl] = useState(null)
-  const [lightboxLoading, setLightboxLoading] = useState(false)
 
   // ── Витрина ──────────────────────────────────────────────────────
-
-  const loadPhotos = useCallback(async () => {
-    setPhotosLoading(true)
+  const loadPhotos = useCallback(async (force = false) => {
+    // При первом вызове показываем спиннер только если кэша нет
+    if (!_photosCache) setPhotosLoading(true)
     try {
-      const fetched = await fetchPhotosFromSheet()
+      const fetched = await fetchPhotosWithCache(force)
       setPhotos(fetched)
     } catch {
       setPhotos([])
@@ -232,7 +181,7 @@ export default function PhotoSection() {
 
   useEffect(() => {
     loadPhotos()
-    const id = setInterval(loadPhotos, GALLERY_REFRESH_MS)
+    const id = setInterval(() => loadPhotos(true), GALLERY_REFRESH_MS)
     return () => clearInterval(id)
   }, [loadPhotos])
 
@@ -268,6 +217,7 @@ export default function PhotoSection() {
     setCapturedBlob(null)
     setCapturedUrl(null)
     setUploadStatus(null)
+    setUploadError('')
     setMode('camera')
     await startCamera(facingMode)
   }
@@ -278,52 +228,30 @@ export default function PhotoSection() {
     await startCamera(next)
   }
 
-  
   const takePhoto = async () => {
     const video = videoRef.current
     const canvas = canvasRef.current
-
     if (!video || !canvas) return
 
     canvas.width = video.videoWidth
     canvas.height = video.videoHeight
-
     const ctx = canvas.getContext('2d')
 
-    // зеркалим фронтальную камеру
     if (facingMode === 'user') {
       ctx.translate(canvas.width, 0)
       ctx.scale(-1, 1)
     }
-
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-
-    // сбрасываем transform
     ctx.setTransform(1, 0, 0, 1, 0, 0)
 
-    const blob = await new Promise((resolve) =>
-      canvas.toBlob(resolve, 'image/jpeg', 0.95)
-    )
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.95))
+    if (!blob) { console.error('Failed to create blob'); return }
 
-    if (!blob) {
-      console.error('Failed to create blob')
-      return
-    }
-
-    const file = new File(
-      [blob],
-      `photo_${Date.now()}.jpg`,
-      {
-        type: 'image/jpeg',
-      }
-    )
-
+    const file = new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' })
     setCapturedBlob(file)
     setCapturedUrl(URL.createObjectURL(file))
-
     stopCamera()
     setMode('preview')
-  
   }
 
   const retakeCamera = async () => {
@@ -331,6 +259,7 @@ export default function PhotoSection() {
     setCapturedBlob(null)
     setCapturedUrl(null)
     setUploadStatus(null)
+    setUploadError('')
     setMode('camera')
     await startCamera(facingMode)
   }
@@ -341,22 +270,17 @@ export default function PhotoSection() {
     setCapturedBlob(null)
     setCapturedUrl(null)
     setUploadStatus(null)
-    // Чистим очередь галереи
-    setQueue((q) => {
-      q.forEach((item) => URL.revokeObjectURL(item.url))
-      return []
-    })
+    setUploadError('')
+    setQueue((q) => { q.forEach((item) => URL.revokeObjectURL(item.url)); return [] })
     setFromGallery(false)
     setMode('gallery')
   }
 
-  // ── Галерея: выбор файлов ────────────────────────────────────────
+  // ── Галерея: выбор файлов ─────────────────────────────────────────
   const onFileChange = (e) => {
     const files = Array.from(e.target.files || [])
     if (!files.length) return
-    // Сбрасываем input чтобы можно было выбрать снова
     e.target.value = ''
-
     setQueue((prev) => {
       const slots = MAX_FILES - prev.length
       const toAdd = files.slice(0, slots).map((file) => ({
@@ -368,6 +292,7 @@ export default function PhotoSection() {
       return [...prev, ...toAdd]
     })
     setUploadStatus(null)
+    setUploadError('')
     setFromGallery(true)
     setMode('preview')
   }
@@ -380,101 +305,94 @@ export default function PhotoSection() {
     })
   }
 
-  const addMoreFiles = () => {
-    fileInputRef.current?.click()
-  }
+  const addMoreFiles = () => fileInputRef.current?.click()
 
-  // ── Загрузка фото с камеры ────────────────────────────────────────
-  // Сначала Cloudinary (основное хранилище для показа),
-  // потом бэкап на Яндекс.Диск — так же как uploadQueue для галереи
+  // ── Загрузка с камеры ─────────────────────────────────────────────
   const uploadCameraPhoto = async () => {
-    if (!capturedBlob) { setUploadStatus('error'); return }
+    if (!capturedBlob) { setUploadStatus('error'); setUploadError('Нет фото для загрузки'); return }
     setUploading(true)
     setUploadStatus(null)
+    setUploadError('')
     try {
-      // 1. Загружаем в Cloudinary
       const uploaded = await uploadToCloudinary(capturedBlob)
 
-      const newPhoto = {
-        id: uploaded.public_id,
-        name: uploaded.public_id,
-        imgUrl: uploaded.secure_url,
-        downloadUrl: uploaded.secure_url,
-        created: new Date().toISOString(),
-      }
-
-      // 2. Сохраняем URL в Google Sheets и обновляем галерею
+      // Сохраняем в Google Sheets
       await savePhotoToSheet(uploaded.secure_url, uploaded.public_id)
-      const updated = await fetchPhotosFromSheet()
+
+      // Обновляем галерею (сбрасываем кэш)
+      const updated = await fetchPhotosWithCache(true)
       setPhotos(updated)
 
-      // 3. Бэкап на Яндекс.Диск (не блокирует, если упадёт)
-      if (YANDEX_TOKEN) {
-        try {
-          await ydEnsureFolder(YANDEX_TOKEN, YANDEX_FOLDER)
-          const filename = `${uploaded.public_id}.jpg`
-          await ydUpload(YANDEX_TOKEN, YANDEX_FOLDER, filename, capturedBlob)
-        } catch (e) {
-          console.error('Yandex backup failed:', e)
-        }
-      }
+      // Бэкап на Яндекс.Диск — в фоне, не блокирует и не показывает ошибку пользователю
+      ydBackupSilent(YANDEX_TOKEN, YANDEX_FOLDER, uploaded.public_id, capturedBlob)
 
       setUploadStatus('success')
-      setTimeout(() => { closeAll() }, 1500)
+      setTimeout(closeAll, 1500)
     } catch (e) {
       console.error(e)
       setUploadStatus('error')
+      setUploadError('Не удалось сохранить фото. Попробуйте ещё раз.')
     } finally {
       setUploading(false)
     }
   }
 
-  // Загрузка очереди из галереи
+  // ── Загрузка очереди из галереи — параллельно ─────────────────────
   const uploadQueue = async () => {
     if (!queue.length) return
-
     setUploading(true)
     setUploadStatus(null)
+    setUploadError('')
 
-    try {
-      for (const item of queue) {
-        const uploaded = await uploadToCloudinary(item.blob)
+    // Помечаем все как "в очереди"
+    setQueue((q) => q.map((i) => ({ ...i, status: 'uploading' })))
 
-        // Сохраняем URL в Google Sheets (доступно всем устройствам)
-        await savePhotoToSheet(uploaded.secure_url, uploaded.public_id)
+    let hasError = false
 
-        // backup в Яндекс.Диск
-        if (YANDEX_TOKEN) {
-          try {
-            await ydEnsureFolder(YANDEX_TOKEN, YANDEX_FOLDER)
-            const filename = `${uploaded.public_id}.jpg`
-            await ydUpload(YANDEX_TOKEN, YANDEX_FOLDER, filename, item.blob)
-          } catch (e) {
-            console.error('Yandex backup failed:', e)
-          }
+    // Загружаем все файлы параллельно через Promise.allSettled
+    const results = await Promise.allSettled(
+      queue.map(async (item) => {
+        try {
+          const uploaded = await uploadToCloudinary(item.blob)
+          await savePhotoToSheet(uploaded.secure_url, uploaded.public_id)
+          // Бэкап в фоне
+          ydBackupSilent(YANDEX_TOKEN, YANDEX_FOLDER, uploaded.public_id, item.blob)
+          // Помечаем как готово
+          setQueue((q) => q.map((i) => i.id === item.id ? { ...i, status: 'done' } : i))
+          return uploaded
+        } catch (e) {
+          console.error('Upload failed for item', item.id, e)
+          setQueue((q) => q.map((i) => i.id === item.id ? { ...i, status: 'error' } : i))
+          hasError = true
+          throw e
         }
-      }
+      })
+    )
 
-      const updated = await fetchPhotosFromSheet()
+    // Обновляем галерею один раз после всех загрузок
+    const updated = await fetchPhotosWithCache(true)
+    setPhotos(updated)
 
-      setPhotos(updated)
+    const successCount = results.filter((r) => r.status === 'fulfilled').length
 
-      setUploadStatus('success')
-
-      setTimeout(() => {
-        closeAll()
-      }, 1000)
-    } catch (e) {
-      console.error(e)
+    if (hasError) {
+      const failCount = results.filter((r) => r.status === 'rejected').length
       setUploadStatus('error')
-    } finally {
-      setUploading(false)
+      setUploadError(
+        successCount > 0
+          ? `Загружено ${successCount} из ${queue.length}. ${failCount} фото не удалось — попробуйте ещё раз.`
+          : 'Не удалось загрузить фото. Проверьте интернет-соединение.'
+      )
+    } else {
+      setUploadStatus('success')
+      setTimeout(closeAll, 1000)
     }
+
+    setUploading(false)
   }
 
   // ── Лайтбокс ─────────────────────────────────────────────────────
   const openLightbox = (photo) => {
-    // publicUrl ставим напрямую в <img src> — браузер грузит без CORS
     setLightboxUrl(photo.imgUrl || photo.publicUrl || photo.downloadUrl || null)
   }
 
@@ -531,7 +449,7 @@ export default function PhotoSection() {
             </div>
           )}
 
-          {/* ── Камера (viewfinder) ── */}
+          {/* ── Камера ── */}
           {mode === 'camera' && (
             <div className="photo-section__camera-wrap">
               <div className="photo-section__video-wrap">
@@ -541,12 +459,7 @@ export default function PhotoSection() {
                   playsInline
                   muted
                   autoPlay
-                  style={{
-                    transform:
-                      facingMode === 'user'
-                        ? 'scaleX(-1)'
-                        : 'scaleX(1)',
-                  }}
+                  style={{ transform: facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)' }}
                 />
                 <canvas ref={canvasRef} style={{ display: 'none' }} />
                 <div className="photo-section__camera-controls">
@@ -622,7 +535,6 @@ export default function PhotoSection() {
                       </div>
                     ))}
 
-                    {/* Кнопка добавить ещё */}
                     {queue.length < MAX_FILES && !uploading && (
                       <button className="photo-section__queue-add" onClick={addMoreFiles} title="Добавить ещё">
                         +
@@ -651,7 +563,6 @@ export default function PhotoSection() {
                     </button>
                   </div>
 
-                  {/* hidden input для добавления ещё */}
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -670,7 +581,7 @@ export default function PhotoSection() {
               )}
               {uploadStatus === 'error' && (
                 <p className="photo-section__status photo-section__status--error">
-                  Не удалось загрузить. Проверьте токен Яндекс.Диска.
+                  {uploadError || 'Не удалось загрузить. Попробуйте ещё раз.'}
                 </p>
               )}
             </div>
@@ -697,8 +608,8 @@ export default function PhotoSection() {
                     alt={photo.name}
                     className="photo-section__thumb"
                     loading="lazy"
+                    decoding="async"
                     onError={() => {
-                      // Фото недоступно — убираем из галереи
                       setPhotos((prev) => prev.filter((p) => p.name !== photo.name))
                     }}
                   />
@@ -714,23 +625,20 @@ export default function PhotoSection() {
 
       {/* ── Лайтбокс через portal ── */}
       {createPortal(
-        (lightboxUrl || lightboxLoading) ? (
+        lightboxUrl ? (
           <div
             className="photo-section__lightbox"
-            onClick={() => { setLightboxUrl(null); setLightboxLoading(false) }}
+            onClick={() => setLightboxUrl(null)}
           >
-            {lightboxLoading && <div className="photo-section__lightbox-spinner">⌛</div>}
-            {lightboxUrl && (
-              <img
-                src={lightboxUrl}
-                alt="Фото"
-                className="photo-section__lightbox-img"
-                onClick={(e) => e.stopPropagation()}
-              />
-            )}
+            <img
+              src={lightboxUrl}
+              alt="Фото"
+              className="photo-section__lightbox-img"
+              onClick={(e) => e.stopPropagation()}
+            />
             <button
               className="photo-section__lightbox-close"
-              onClick={() => { setLightboxUrl(null); setLightboxLoading(false) }}
+              onClick={() => setLightboxUrl(null)}
               aria-label="Закрыть"
             >
               ×
